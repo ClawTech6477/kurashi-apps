@@ -1,0 +1,793 @@
+/* ==========================================================================
+   くらしのアプリ棚 — デザインシステム
+   コンセプト: 「棚に並んだ道具帖」。個人開発者の手書きノートのような、
+   静かで温かい紙の質感に、アプリごとの色のタブを差し込む。
+   ========================================================================== */
+
+:root {
+  /* --- 紙とインク(共通の骨格) --- */
+  --paper: #faf6ef;
+  --paper-raised: #ffffff;
+  --ink: #2b2620;
+  --ink-soft: #6b6153;
+  --ink-faint: #9b9184;
+  --rule: #ddd4c4;
+  --rule-strong: #c9bda6;
+  --shadow: 0 1px 0 rgba(43, 38, 32, 0.05);
+  --shadow-card: 0 2px 14px rgba(43, 38, 32, 0.07);
+  --shadow-tab: 0 3px 8px rgba(43, 38, 32, 0.12);
+
+  /* --- アプリごとの肌の色 --- */
+  --koimachi: #f2437b;
+  --koimachi-ink: #7a1436;
+  --koimachi-soft: #fce6ee;
+  --koimachi-line: #f6b8cd;
+
+  --glp1: #c63d2f;
+  --glp1-deep: #1c1f24;
+  --glp1-soft: #ece7e2;
+  --glp1-line: #d8b7b0;
+
+  --zuki: #8f7dd8;
+  --zuki-pink: #f0a8c8;
+  --zuki-soft: #f1edfb;
+  --zuki-line: #cfc2ef;
+
+  /* --- タイポグラフィ --- */
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+
+  --radius-s: 8px;
+  --radius-m: 14px;
+  --radius-l: 22px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #201c17;
+    --paper-raised: #2a251e;
+    --ink: #f3ecdf;
+    --ink-soft: #c9bfae;
+    --ink-faint: #8d8272;
+    --rule: #46402f;
+    --rule-strong: #5c5440;
+    --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.35);
+    --shadow-tab: 0 3px 10px rgba(0, 0, 0, 0.4);
+    --koimachi-soft: #3a2129;
+    --glp1-soft: #29211d;
+    --zuki-soft: #29253a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #201c17;
+  --paper-raised: #2a251e;
+  --ink: #f3ecdf;
+  --ink-soft: #c9bfae;
+  --ink-faint: #8d8272;
+  --rule: #46402f;
+  --rule-strong: #5c5440;
+  --shadow-card: 0 2px 16px rgba(0, 0, 0, 0.35);
+  --shadow-tab: 0 3px 10px rgba(0, 0, 0, 0.4);
+  --koimachi-soft: #3a2129;
+  --glp1-soft: #29211d;
+  --zuki-soft: #29253a;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.85;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.wrap--narrow {
+  max-width: 720px;
+}
+
+/* --------------------------------------------------------------------------
+   シグネチャ: インデックスタブ・ナビゲーション
+   3色のタブが物理的な「見出しタブ」のように並ぶ。今いる場所のタブだけが
+   前に出て大きくなり、他は後ろに退いて小さく静かになる。
+   -------------------------------------------------------------------------- */
+.tabnav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.tabnav__inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 14px 24px 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tabnav__brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+  margin-right: auto;
+  padding-bottom: 14px;
+  white-space: nowrap;
+}
+
+.tabnav__brand a {
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 9px 16px 10px;
+  border-radius: 10px 10px 0 0;
+  border: 1px solid var(--rule);
+  border-bottom: none;
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  transform: translateY(4px);
+  opacity: 0.72;
+  transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tab:hover {
+  transform: translateY(1px);
+  opacity: 0.92;
+}
+
+.tab.is-current {
+  opacity: 1;
+  transform: translateY(0);
+  color: #fff;
+  box-shadow: var(--shadow-tab);
+  font-size: 15px;
+  padding: 11px 18px 12px;
+}
+
+.tab--koimachi.is-current { background: var(--koimachi); }
+.tab--glp1.is-current { background: var(--glp1-deep); }
+.tab--zuki.is-current { background: var(--zuki); }
+
+.tab--koimachi:not(.is-current):hover { border-color: var(--koimachi-line); color: var(--koimachi-ink); }
+.tab--glp1:not(.is-current):hover { border-color: var(--glp1-line); color: var(--glp1); }
+.tab--zuki:not(.is-current):hover { border-color: var(--zuki-line); color: var(--zuki); }
+
+.tab__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+.tab--koimachi .tab__dot { background: var(--koimachi); }
+.tab--glp1 .tab__dot { background: var(--glp1); }
+.tab--zuki .tab__dot { background: var(--zuki); }
+.tab.is-current .tab__dot { background: rgba(255, 255, 255, 0.85); }
+
+/* --------------------------------------------------------------------------
+   ヒーロー
+   -------------------------------------------------------------------------- */
+.hero {
+  padding: 64px 0 48px;
+}
+
+.hero__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 18px;
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(28px, 4.4vw, 46px);
+  line-height: 1.45;
+  margin: 0 0 20px;
+  letter-spacing: 0.01em;
+}
+
+.hero p.lede {
+  font-size: 17px;
+  color: var(--ink-soft);
+  max-width: 560px;
+  margin: 0 0 28px;
+}
+
+/* --------------------------------------------------------------------------
+   アプリカード(ハブ・記事末尾・相互回遊で使い回す)
+   -------------------------------------------------------------------------- */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin: 8px 0 56px;
+}
+
+@media (max-width: 860px) {
+  .app-grid { grid-template-columns: 1fr; }
+}
+
+.app-card {
+  position: relative;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  padding: 26px 24px 24px;
+  text-decoration: none;
+  color: var(--ink);
+  box-shadow: var(--shadow-card);
+  border-top: 5px solid var(--card-accent, var(--ink));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.app-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(43, 38, 32, 0.13);
+}
+
+.app-card--koimachi { --card-accent: var(--koimachi); }
+.app-card--glp1 { --card-accent: var(--glp1-deep); }
+.app-card--zuki { --card-accent: var(--zuki); }
+
+.app-card__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: var(--shadow);
+}
+
+.app-card__cat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--card-accent, var(--ink-faint));
+  text-transform: uppercase;
+}
+
+.app-card h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.app-card p {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  margin: 0;
+  flex: 1;
+}
+
+.app-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: var(--tag-bg, var(--rule));
+  color: var(--tag-fg, var(--ink-soft));
+  white-space: nowrap;
+}
+
+.app-card--koimachi .tag { background: var(--koimachi-soft); color: var(--koimachi-ink); }
+.app-card--glp1 .tag { background: var(--glp1-soft); color: var(--glp1); }
+.app-card--zuki .tag { background: var(--zuki-soft); color: #4d3f8c; }
+
+.app-card__cta {
+  margin-top: 6px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--card-accent, var(--ink));
+}
+
+.app-card__cta::after {
+  content: " →";
+}
+
+/* --------------------------------------------------------------------------
+   開発ポリシー・帯セクション
+   -------------------------------------------------------------------------- */
+.policy-band {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 40px 0;
+  margin: 20px 0 56px;
+}
+
+.policy-band h2 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  margin: 0 0 22px;
+}
+
+.policy-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (max-width: 780px) {
+  .policy-list { grid-template-columns: 1fr; }
+}
+
+.policy-list li {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.6;
+  padding-left: 18px;
+  border-left: 3px solid var(--rule-strong);
+}
+
+.policy-list li span {
+  display: block;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin-top: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   セクション(アプリ紹介ページ用): 左に色帯を立てて見出しの重みを作る
+   -------------------------------------------------------------------------- */
+.section {
+  padding: 44px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.section:first-of-type {
+  border-top: none;
+}
+
+.section__bar {
+  border-left: 4px solid var(--accent, var(--ink));
+  padding-left: 18px;
+}
+
+.section h2 {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 27px);
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.section h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  margin: 28px 0 10px;
+}
+
+.section p {
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.section ul,
+.section ol {
+  padding-left: 1.2em;
+}
+
+.section li {
+  margin-bottom: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   機能タグ・特徴リスト(索引カード風)
+   -------------------------------------------------------------------------- */
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0 0;
+  display: grid;
+  gap: 12px;
+}
+
+.feature-list li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px 16px;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-s);
+}
+
+.feature-list .mark {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent, var(--ink-faint));
+  flex: none;
+  padding-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   比較表
+   -------------------------------------------------------------------------- */
+.compare {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+  font-size: 14.5px;
+}
+
+.compare th,
+.compare td {
+  border: 1px solid var(--rule);
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.compare thead th {
+  font-family: var(--font-display);
+  background: var(--paper-raised);
+}
+
+.compare td:first-child,
+.compare th:first-child {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   FAQ(ledger line accordion)
+   -------------------------------------------------------------------------- */
+.faq {
+  border-top: 1px solid var(--rule);
+}
+
+.faq details {
+  border-bottom: 1px solid var(--rule);
+  padding: 18px 0;
+}
+
+.faq summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15.5px;
+  list-style: none;
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::before {
+  content: "Q";
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent, var(--ink-faint));
+  border: 1px solid var(--accent, var(--rule-strong));
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.faq details p {
+  margin: 12px 0 0 32px;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+}
+
+/* --------------------------------------------------------------------------
+   免責ブロック
+   -------------------------------------------------------------------------- */
+.disclaimer {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius-s);
+  padding: 16px 18px;
+  margin: 32px 0;
+}
+
+.disclaimer strong {
+  font-family: var(--font-display);
+  color: var(--ink);
+}
+
+/* --------------------------------------------------------------------------
+   CTA / App Store バッジ
+   -------------------------------------------------------------------------- */
+.cta-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+
+.badge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  background: var(--accent, var(--ink));
+  padding: 13px 22px;
+  border-radius: 30px;
+  text-decoration: none;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.badge-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(43, 38, 32, 0.18);
+}
+
+.badge-btn__apple {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   記事(article)
+   -------------------------------------------------------------------------- */
+.breadcrumb {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  padding: 22px 0 0;
+}
+
+.breadcrumb a {
+  text-decoration: none;
+  color: var(--ink-faint);
+}
+
+.breadcrumb a:hover {
+  color: var(--ink);
+}
+
+.article-head {
+  padding: 18px 0 30px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 34px;
+}
+
+.article-head h1 {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.6vw, 33px);
+  line-height: 1.5;
+  margin: 14px 0 16px;
+}
+
+.article-meta {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.article-meta .tag {
+  background: var(--accent-soft, var(--rule));
+  color: var(--accent, var(--ink-soft));
+}
+
+.toc {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-s);
+  padding: 18px 22px;
+  margin: 0 0 40px;
+}
+
+.toc__label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+
+.toc ol {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 14px;
+}
+
+.toc a {
+  text-decoration: none;
+  color: var(--ink-soft);
+}
+
+.toc a:hover {
+  color: var(--accent, var(--ink));
+}
+
+.article-body h2 {
+  font-family: var(--font-display);
+  font-size: clamp(19px, 2.4vw, 23px);
+  margin: 46px 0 16px;
+  padding-left: 16px;
+  border-left: 4px solid var(--accent, var(--rule-strong));
+}
+
+.article-body p {
+  margin: 0 0 18px;
+}
+
+.article-body ul,
+.article-body ol {
+  padding-left: 1.3em;
+  margin: 0 0 18px;
+}
+
+.article-body li {
+  margin-bottom: 8px;
+}
+
+.pullquote {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--ink);
+  border-left: 4px solid var(--accent, var(--rule-strong));
+  padding: 4px 0 4px 20px;
+  margin: 30px 0;
+}
+
+/* --------------------------------------------------------------------------
+   相互回遊
+   -------------------------------------------------------------------------- */
+.cross-nav {
+  padding: 44px 0 60px;
+}
+
+.cross-nav__label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* --------------------------------------------------------------------------
+   about / 運営者
+   -------------------------------------------------------------------------- */
+.about-photo-frame {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 30px;
+  margin-bottom: 20px;
+}
+
+/* --------------------------------------------------------------------------
+   フッター
+   -------------------------------------------------------------------------- */
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 36px 0 48px;
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+footer a {
+  text-decoration: none;
+  color: var(--ink-faint);
+}
+
+footer a:hover {
+  color: var(--ink);
+}
+
+footer .foot-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   ユーティリティ
+   -------------------------------------------------------------------------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent, #8f7dd8);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
