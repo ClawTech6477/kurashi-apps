@@ -253,6 +253,21 @@ a {
   .app-grid { grid-template-columns: 1fr; }
 }
 
+.app-grid--pair {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .app-grid--pair { grid-template-columns: 1fr; }
+}
+
+.app-grid--single {
+  grid-template-columns: 1fr;
+  max-width: 420px;
+  margin: 40px 0;
+}
+
 .app-card {
   position: relative;
   background: var(--paper-raised);
@@ -562,7 +577,7 @@ a {
 }
 
 /* --------------------------------------------------------------------------
-   CTA / App Store バッジ
+   CTA / App Store バッジ(Appleの公式バッジ画像を使用)
    -------------------------------------------------------------------------- */
 .cta-row {
   display: flex;
@@ -574,28 +589,92 @@ a {
 
 .badge-btn {
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 15px;
-  color: #fff;
-  background: var(--accent, var(--ink));
-  padding: 13px 22px;
-  border-radius: 30px;
-  text-decoration: none;
-  box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.badge-btn img {
+  height: 50px;
+  width: auto;
+  display: block;
 }
 
 .badge-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(43, 38, 32, 0.18);
+  filter: drop-shadow(0 6px 14px rgba(43, 38, 32, 0.22));
 }
 
-.badge-btn__apple {
-  font-size: 18px;
-  line-height: 1;
+.trust-line {
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin: -8px 0 0;
+}
+
+.trust-line a {
+  color: var(--accent, var(--ink-soft));
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   スクリーンショット・ギャラリー
+   -------------------------------------------------------------------------- */
+.screens {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 6px 2px 18px;
+  margin: 8px 0 0;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screens img {
+  flex: none;
+  width: 168px;
+  border-radius: 18px;
+  border: 6px solid var(--paper-raised);
+  box-shadow: var(--shadow-card);
+  scroll-snap-align: start;
+}
+
+.screens--tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  overflow: visible;
+  padding: 6px 0 0;
+}
+
+@media (max-width: 620px) {
+  .screens--tiles { grid-template-columns: repeat(2, 1fr); }
+}
+
+.tile {
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-m);
+  padding: 20px 16px;
+  text-align: center;
+}
+
+.tile__icon {
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: center;
+}
+
+.tile__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent, var(--ink-faint));
+  display: inline-block;
+}
+
+.tile__label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 /* --------------------------------------------------------------------------
