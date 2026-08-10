@@ -151,11 +151,11 @@
 
       <li class="step">
         <h3>提出する</h3>
-        <button id="nSubmit" style="font-size:17px;padding:12px 26px">希望休を提出する</button>
-        <div class="hint">
-          押すとファイルが1つ保存されます。<b>そのファイルを共有フォルダに入れてください。</b><br>
-          保存先を聞かれたら、師長から指定された場所を選んでください。
+        <div class="row" style="margin-bottom:10px">
+          <button id="nSubmit" style="font-size:17px;padding:12px 26px">希望休を提出する</button>
+          <button class="ghost small" id="nSetDir">提出先フォルダを設定</button>
         </div>
+        <div class="hint" id="nSubmitHint"></div>
         <div id="nDone"></div>
       </li>
     </ul>
@@ -743,20 +743,98 @@ $("nName").onchange = ()=>{
   myPick = new Set(requests[nm] || []);
   renderNurse();
 };
-$("nSubmit").onclick = ()=>{
+/* ── 提出先フォルダを覚えて、そこへ直接書き込む ──────────────
+   File System Access API を使う。file:// もセキュアコンテキスト扱いなので
+   ローカルのHTMLからでも動く(2026-08-10に実測で確認)。
+   ただし次の場合は使えないので、必ず従来のダウンロードへ退避する:
+     ・Firefox / Safari（APIが無い）
+     ・企業ポリシーでファイル書き込みが禁止されている端末
+   フォルダの許可はブラウザが保持するが、セッションによっては再確認が入る。 */
+const DIRDB="shiftdir";
+function idb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DIRDB,1);
+    r.onupgradeneeded=()=>r.result.createObjectStore("h");
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function saveDirHandle(h){
+  const db=await idb();
+  return new Promise(res=>{ const t=db.transaction("h","readwrite");
+    t.objectStore("h").put(h,"submit"); t.oncomplete=()=>res(); });
+}
+async function loadDirHandle(){
+  try{
+    const db=await idb();
+    return await new Promise(res=>{ const t=db.transaction("h","readonly");
+      const q=t.objectStore("h").get("submit"); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); });
+  }catch(e){ return null; }
+}
+async function ensurePermission(h){
+  if(!h) return false;
+  // 権限APIを持たない実装もある。その場合は拒否せず、実際に書いてみて判断する
+  if(typeof h.queryPermission!=="function") return true;
+  const opt={mode:"readwrite"};
+  if(await h.queryPermission(opt)==="granted") return true;
+  if(typeof h.requestPermission!=="function") return false;
+  return await h.requestPermission(opt)==="granted";
+}
+async function refreshSubmitHint(){
+  const el=$("nSubmitHint");
+  if(typeof window.showDirectoryPicker!=="function"){
+    el.innerHTML="押すとファイルが1つ保存されます。<b>そのファイルを共有フォルダに入れてください。</b>";
+    $("nSetDir").style.display="none"; return;
+  }
+  const h=await loadDirHandle();
+  const label = h && h.name ? h.name : "指定済みの";
+  el.innerHTML = h
+    ? `提出先：<b>${esc(label)}</b> フォルダ。押すとそのまま保存されます（ファイルを移す必要はありません）。`
+    : "いまは保存先を毎回選ぶ必要があります。<b>「提出先フォルダを設定」</b>を一度押しておくと、以後は押すだけで共有フォルダに入ります。";
+}
+$("nSetDir").onclick = async ()=>{
+  try{
+    const h=await window.showDirectoryPicker({mode:"readwrite"});
+    if(!await ensurePermission(h)){ alert("フォルダへの書き込みが許可されませんでした。"); return; }
+    await saveDirHandle(h);
+    await refreshSubmitHint();
+    alert(`提出先を「${h.name||"指定したフォルダ"}」に設定しました。次から提出は1回押すだけです。`);
+  }catch(e){
+    // 取り消しは何もしない。それ以外(端末のポリシーで禁止など)は黙らせずに伝える
+    if(e && e.name==="AbortError") return;
+    alert("このパソコンではフォルダを指定できませんでした。\n"
+        + "提出は今までどおりファイル保存になります。\n（理由: "+(e && e.message ? e.message : e)+"）");
+  }
+};
+
+$("nSubmit").onclick = async ()=>{
   const nm = $("nName").value;
   if(!nm){ alert("お名前を選んでください"); return; }
   const y=Number($("year").value), m=Number($("month").value);
   const data = {type:"希望休", year:y, month:m, name:nm, days:[...myPick].sort((a,b)=>a-b)};
   requests[nm] = data.days; persist();
-  const blob = new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download = `希望休_${y}${String(m).padStart(2,"0")}_${nm}.json`;
-  a.click(); URL.revokeObjectURL(a.href);
+  const text = JSON.stringify(data,null,1);
+  const fname = `希望休_${y}${String(m).padStart(2,"0")}_${nm}.json`;
+
+  // ① 設定済みのフォルダへ直接書く
+  const h = await loadDirHandle();
+  if(h && await ensurePermission(h)){
+    try{
+      const fh = await h.getFileHandle(fname,{create:true});
+      const w = await fh.createWritable();
+      await w.write(text); await w.close();
+      $("nDone").innerHTML = `<div class="okbox">
+        ${esc(nm)} さんの希望休（${data.days.length}日）を
+        <b>${esc(h.name||"指定済みの")}</b> フォルダに提出しました。この画面は閉じて大丈夫です。</div>`;
+      return;
+    }catch(e){ /* 書けなければ下のダウンロードへ */ }
+  }
+  // ② 従来どおりダウンロード
+  const blob=new Blob([text],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=fname; a.click(); URL.revokeObjectURL(a.href);
   $("nDone").innerHTML = `<div class="okbox">
     ${esc(nm)} さんの希望休（${data.days.length}日）を保存しました。
-    このファイルを共有フォルダに入れてください。</div>`;
+    <b>このファイルを共有フォルダに入れてください。</b></div>`;
 };
 
 /* ══════════ 師長用 ══════════ */
@@ -1058,6 +1136,7 @@ function persist(){
   }
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
   renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
+  refreshSubmitHint();
   if(!staff.length){ show("S"); $("dStaff").open=true; }
 })();
 </script>
