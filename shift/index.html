@@ -184,10 +184,12 @@
   <div class="panel">
     <h2>提出された希望休を取り込む</h2>
     <div class="row">
-      <button class="ghost" id="impBtn">提出ファイルをまとめて読み込む</button>
+      <button id="impFolder">共有フォルダから取り込む</button>
+      <button class="ghost" id="impBtn">ファイルを選んで読み込む</button>
       <input type="file" id="impFile" accept=".json" multiple hidden>
       <button class="ghost small" id="clearReq">希望休をすべて消す</button>
     </div>
+    <p class="hint" id="folderHint"></p>
     <div id="reqSummary" class="hint">まだ取り込んでいません。</div>
   </div>
 
@@ -851,13 +853,90 @@ async function refreshSubmitHint(){
     ? `提出先：<b>${esc(label)}</b> フォルダ。押すとそのまま保存されます（ファイルを移す必要はありません）。`
     : "いまは保存先を毎回選ぶ必要があります。<b>「提出先フォルダを設定」</b>を一度押しておくと、以後は押すだけで共有フォルダに入ります。";
 }
+/* 共有フォルダを一度指定すれば、読み書きの両方を自動でやる。
+   ・看護師PC: 起動時に勤務表設定.jsonを自動で読む → 名前がすぐ出る
+              提出はそのフォルダへ直接書く（ダウンロードも手作業の移動も不要）
+   ・師長PC  : フォルダ内の希望休_*.json をまとめて読む（ファイル選択も不要）
+   サーバが無い以上PC間の受け渡しは共有フォルダしか無いが、手作業はこれで無くせる。 */
+async function readConfigFromDir(h){
+  try{
+    const fh = await h.getFileHandle("勤務表設定.json");
+    const c = JSON.parse(await (await fh.getFile()).text());
+    if(c.type!=="勤務表設定" || !Array.isArray(c.staff)) return false;
+    staff=c.staff; shifts=(c.shifts||shifts).map(migrateNeed); forbidden=c.forbidden||forbidden;
+    if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
+    if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
+    if(c.holidays!=null)$("holidays").value=c.holidays;
+    if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
+                 $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
+    persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid();
+    return true;
+  }catch(e){ return false; }   // まだ置かれていない場合など
+}
+// 起動時、フォルダが許可済みなら名簿を黙って読み込む
+async function autoLoadFromDir(){
+  if(currentMode()!=="file") return;
+  const h = await loadDirHandle();
+  if(!h) return;
+  if(!(h.queryPermission && await h.queryPermission({mode:"readwrite"})==="granted")) return;
+  if(await readConfigFromDir(h)){
+    $("nLoadHint").innerHTML='<span style="color:#166534;font-weight:600">'
+      + staff.length + '名の名簿を共有フォルダから自動で読み込みました。</span>';
+    renderNurse();
+  }
+}
+// 師長: フォルダ内の提出ファイルをまとめて取り込む
+$("impFolder").onclick = async ()=>{
+  let h = await loadDirHandle();
+  try{
+    if(!h){ h = await window.showDirectoryPicker({mode:"readwrite"}); await saveDirHandle(h); }
+    if(!await ensurePermission(h)){ alert("フォルダを読み取れませんでした。"); return; }
+  }catch(e){
+    if(e && e.name==="AbortError") return;
+    alert("このパソコンではフォルダを指定できませんでした。\n「ファイルを選んで読み込む」をお使いください。");
+    return;
+  }
+  const y=Number($("year").value), m=Number($("month").value);
+  let added=0, skipped=0;
+  try{
+    for await (const [name, fh] of h.entries()){
+      if(!/^希望休_.*\.json$/.test(name) || fh.kind!=="file") continue;
+      try{
+        const d = JSON.parse(await (await fh.getFile()).text());
+        if(!d || !d.name || !Array.isArray(d.days)) continue;
+        if(Number(d.year)!==y || Number(d.month)!==m){ skipped++; continue; }
+        requests[d.name]=d.days; added++;
+        if(!staff.some(x=>x.name===d.name)) staff.push({name:d.name,canNight:true,isLeader:false,maxNight:8});
+      }catch(e){ skipped++; }
+    }
+  }catch(e){ alert("フォルダを読めませんでした: "+(e && e.message ? e.message : e)); return; }
+  persist(); renderStaff(); renderGrid(); renderReqSummary(); refreshFolderHint();
+  alert(`${added}名分を取り込みました。` + (skipped?`\n（対象外 ${skipped}件は読み飛ばしました）`:""));
+};
+async function refreshFolderHint(){
+  const el=$("folderHint");
+  if(typeof window.showDirectoryPicker!=="function"){
+    $("impFolder").style.display="none";
+    el.textContent="このブラウザではフォルダからの一括取り込みが使えません。「ファイルを選んで読み込む」をお使いください。";
+    return;
+  }
+  const h=await loadDirHandle();
+  el.innerHTML = h
+    ? `共有フォルダ <b>${esc(h.name||"指定済み")}</b> を記憶しています。押すだけで全員分を取り込みます。`
+    : "はじめに1回だけ共有フォルダを選びます。以後は押すだけで全員分を取り込めます。";
+}
+
 $("nSetDir").onclick = async ()=>{
   try{
     const h=await window.showDirectoryPicker({mode:"readwrite"});
     if(!await ensurePermission(h)){ alert("フォルダへの書き込みが許可されませんでした。"); return; }
     await saveDirHandle(h);
     await refreshSubmitHint();
-    alert(`提出先を「${h.name||"指定したフォルダ"}」に設定しました。次から提出は1回押すだけです。`);
+    const got = await readConfigFromDir(h);   // 同じフォルダに名簿があれば一緒に読む
+    renderNurse();
+    alert(`共有フォルダを「${h.name||"指定したフォルダ"}」に設定しました。`
+        + (got ? `\n名簿(${staff.length}名)も読み込みました。` : "")
+        + "\n次から提出は1回押すだけです。");
   }catch(e){
     // 取り消しは何もしない。それ以外(端末のポリシーで禁止など)は黙らせずに伝える
     if(e && e.name==="AbortError") return;
@@ -881,6 +960,7 @@ function applyMode(){
     : "師長が名簿を共有フォルダに置き、看護師のかたが各自のパソコンで読み込んで提出します。"
       + "パソコンが複数ある職場向けです。";
   refreshSubmitHint();
+  refreshFolderHint();
   renderNurse();
   persist();
 }
@@ -1239,6 +1319,8 @@ function persist(){
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
   renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
   applyMode();   // 集め方に応じて、名簿配布パネルや名簿読込の手順を出し分ける
+  refreshFolderHint();
+  autoLoadFromDir();   // 共有フォルダが許可済みなら名簿を自動で読む
   if(!staff.length){ show("S"); $("dStaff").open=true; }
 })();
 </script>
