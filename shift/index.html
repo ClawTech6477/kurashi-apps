@@ -181,7 +181,24 @@
     <div id="feas"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel" id="vfolderPanel">
+    <h2>共用フォルダ（この画面の中）</h2>
+    <p class="hint" style="margin-top:0">
+      看護師が提出すると、ここにファイルが並びます。師長が取り込む操作は不要で、そのまま勤務表に反映されます。
+    </p>
+    <div class="scroll" style="max-height:260px">
+      <table id="vfolder">
+        <thead><tr><th style="text-align:left">ファイル</th><th>希望休</th><th>提出</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost small" id="vfDownloadAll">中身をまとめて書き出す</button>
+      <span class="hint" style="margin:0" id="vfCount"></span>
+    </div>
+  </div>
+
+  <div class="panel" id="importPanel">
     <h2>提出された希望休を取り込む</h2>
     <div class="row">
       <button id="impFolder">共有フォルダから取り込む</button>
@@ -696,6 +713,7 @@ function migrateNeed(sh){
 let staff = [];
 let forbidden = [];
 let requests = {};    // 氏名 -> [日(1始まり), ...]   ← 希望休のみ
+let submitted = {};   // 氏名 -> 提出時刻(表示用)
 let cells = {};       // "i,d" -> code
 let manualFix = {};   // "i,d" -> true （師長が手で直したセル）
 
@@ -952,6 +970,8 @@ function currentMode(){ return $("modeLocal").checked ? "local" : "file"; }
 function applyMode(){
   const local = currentMode()==="local";
   $("cfgPanel").style.display = local ? "none" : "";
+  $("vfolderPanel").style.display = local ? "" : "none";
+  $("importPanel").style.display  = local ? "none" : "";
   document.getElementById("stepLoad").style.display = local ? "none" : "";
   $("nSetDir").style.display = local ? "none" : "";
   $("modeHint").innerHTML = local
@@ -978,7 +998,10 @@ $("nSubmit").onclick = async ()=>{
 
   // ⓪ 1台で全員入力する運用では、ファイルを作らずこのまま受け付ける
   if(currentMode()==="local"){
-    renderReqSummary(); renderGrid();
+    const t=new Date();
+    submitted[nm]=`${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`;
+    persist();
+    renderVFolder(); renderReqSummary(); renderGrid();
     const done = Object.keys(requests).length, all = staff.length;
     $("nDone").innerHTML = `<div class="okbox">
       ${esc(nm)} さんの希望休（${data.days.length}日）を受け付けました。
@@ -1043,8 +1066,42 @@ $("impFile").onchange = e=>{
 };
 $("clearReq").onclick = ()=>{
   if(!confirm("取り込んだ希望休をすべて消します。よろしいですか？")) return;
-  requests={}; persist(); renderGrid(); renderReqSummary();
+  requests={}; submitted={}; persist(); renderGrid(); renderReqSummary(); renderVFolder();
 };
+/* 画面の中の共用フォルダ。1台運用のときは実ファイルを作らないので、
+   提出されたものが目に見えないと不安になる。ここに並べて可視化する。 */
+function renderVFolder(){
+  const y=$("year").value, m=String($("month").value).padStart(2,"0");
+  const names=Object.keys(requests);
+  const tb=$("vfolder").querySelector("tbody");
+  tb.innerHTML = names.length
+    ? names.map(n=>`<tr>
+        <td style="text-align:left">希望休_${y}${m}_${esc(n)}.json</td>
+        <td>${(requests[n]||[]).map(d=>d+"日").join("、")||"—"}</td>
+        <td>${esc(submitted[n]||"—")}</td>
+        <td><button class="vfdel" data-n="${esc(n)}" style="border:none;background:none;color:#6b6b6b;cursor:pointer">×</button></td>
+      </tr>`).join("")
+    : `<tr><td colspan="4" style="text-align:left;color:var(--sub)">まだ提出がありません。</td></tr>`;
+  tb.querySelectorAll(".vfdel").forEach(b=>{
+    b.onclick=()=>{
+      const n=b.dataset.n;
+      if(!confirm(`${n} さんの提出を取り消しますか？`)) return;
+      delete requests[n]; delete submitted[n];
+      persist(); renderVFolder(); renderReqSummary(); renderGrid();
+    };
+  });
+  $("vfCount").textContent = names.length ? `${names.length}件` : "";
+}
+$("vfDownloadAll").onclick = ()=>{
+  const y=Number($("year").value), m=Number($("month").value);
+  const names=Object.keys(requests);
+  if(!names.length){ alert("提出がありません"); return; }
+  const all=names.map(n=>({type:"希望休",year:y,month:m,name:n,days:requests[n]}));
+  const b=new Blob([JSON.stringify(all,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(b);
+  a.download=`希望休まとめ_${y}${String(m).padStart(2,"0")}.json`; a.click(); URL.revokeObjectURL(a.href);
+};
+
 function renderReqSummary(){
   const names=Object.keys(requests);
   if(!names.length){ $("reqSummary").textContent="まだ取り込んでいません。"; return; }
@@ -1299,7 +1356,7 @@ $("clearGrid").onclick=()=>{
 function persist(){
   try{ localStorage.setItem(LS,JSON.stringify({shifts,staff,forbidden,requests,cells,manualFix,
     year:$("year").value,month:$("month").value,ward:$("ward").value,
-    reqLimit:$("reqLimit").value,holidays:$("holidays").value,mode:currentMode()})); }catch(e){}
+    reqLimit:$("reqLimit").value,holidays:$("holidays").value,mode:currentMode(),submitted})); }catch(e){}
 }
 ["year","month"].forEach(id=>$(id).addEventListener("change",()=>{ renderGrid(); renderNurse(); persist(); }));
 ["ward","reqLimit","holidays"].forEach(id=>$(id).addEventListener("change",persist));
@@ -1309,6 +1366,7 @@ function persist(){
   if(s){
     shifts=s.shifts||shifts; staff=s.staff||[]; forbidden=s.forbidden||[];
     requests=s.requests||{}; cells=s.cells||{}; manualFix=s.manualFix||{};
+    submitted=s.submitted||{};
     if(s.year)$("year").value=s.year; if(s.month)$("month").value=s.month;
     if(s.ward)$("ward").value=s.ward; if(s.reqLimit)$("reqLimit").value=s.reqLimit;
     if(s.holidays)$("holidays").value=s.holidays;
@@ -1318,6 +1376,7 @@ function persist(){
   shifts = shifts.map(migrateNeed);   // 旧形式で保存済みのデータを曜日別へ移行
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
   renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
+  renderVFolder();
   applyMode();   // 集め方に応じて、名簿配布パネルや名簿読込の手順を出し分ける
   refreshFolderHint();
   autoLoadFromDir();   // 共有フォルダが許可済みなら名簿を自動で読む
