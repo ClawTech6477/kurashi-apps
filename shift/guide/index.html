@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>使い方 ｜ 希望休 → 勤務表作成</title>
+<style>
+  :root{--bg:#f6f5f2;--panel:#fff;--ink:#1a1a1a;--sub:#6b6b6b;--line:#dcd8d0;
+        --accent:#8b2f2f;--ok:#166534;--okbg:#f0fdf4;--okline:#bbf7d0;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+       font-size:16px;line-height:1.7}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:22px;margin:0 0 6px}
+  .lead{color:var(--sub);font-size:14px;margin:0 0 22px}
+  h2{font-size:18px;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px}
+  ol.steps{counter-reset:s;list-style:none;margin:0;padding:0}
+  ol.steps>li{counter-increment:s;display:flex;gap:12px;padding:12px 0;border-bottom:1px dotted var(--line)}
+  ol.steps>li:last-child{border-bottom:none}
+  ol.steps>li::before{content:counter(s);flex:none;width:26px;height:26px;border-radius:50%;
+    background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;margin-top:2px}
+  .stepbody{flex:1}
+  .stepbody b{display:block;font-size:16px;margin-bottom:2px}
+  .stepbody span{font-size:14px;color:var(--sub)}
+  .okbox{background:var(--okbg);border:1px solid var(--okline);border-radius:8px;padding:14px;font-size:14px}
+  .okbox b{color:var(--ok)}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#faf9f7;font-size:12px;color:var(--sub);width:38%}
+  a.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+        padding:12px 22px;border-radius:6px;font-weight:600}
+  .note{font-size:13px;color:var(--sub);margin-top:8px}
+  @media print{ body{background:#fff} .panel{break-inside:avoid} a.btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>希望休 → 勤務表作成　使い方</h1>
+  <p class="lead">はじめての方はここだけ読めば使えます。印刷して配っても大丈夫です。</p>
+
+  <h2>看護師のかた</h2>
+  <div class="panel">
+    <ol class="steps">
+      <li><div class="stepbody"><b>「看護師のかた」を選ぶ</b>
+        <span>画面の上にある2つのボタンのうち、左側です。</span></div></li>
+      <li><div class="stepbody"><b>自分の名前を選ぶ</b>
+        <span>一覧に名前が無いときは師長にお伝えください。</span></div></li>
+      <li><div class="stepbody"><b>休みたい日を押す</b>
+        <span>カレンダーの数字を押すと色が変わります。もう一度押すと取り消せます。
+        出せる日数には上限があり、超えると知らせが出ます。</span></div></li>
+      <li><div class="stepbody"><b>「希望休を提出する」を押す</b>
+        <span>ファイルが1つ保存されます。そのファイルを、師長から指定された共有フォルダに入れてください。</span></div></li>
+    </ol>
+  </div>
+
+  <h2>師長のかた</h2>
+  <div class="panel">
+    <ol class="steps">
+      <li><div class="stepbody"><b>まず職員を登録する</b>
+        <span>「師長のかた」→「職員の登録」。名簿があれば「まとめて追加」で一気に貼り付けられます。
+        <strong>ここを先にやらないと、看護師の画面に名前が出ません。</strong></span></div></li>
+      <li><div class="stepbody"><b>夜勤可・リーダー可に印を付ける</b>
+        <span>夜勤に入れない方、リーダーを任せられる方を指定します。ここが勤務表の質を決めます。</span></div></li>
+      <li><div class="stepbody"><b>勤務区分と必要人数を合わせる</b>
+        <span>日勤・準夜・深夜の時刻と、平日／土日それぞれの必要人数を、実際の運用に直してください。</span></div></li>
+      <li><div class="stepbody"><b>希望休を取り込む</b>
+        <span>「提出ファイルをまとめて読み込む」で、共有フォルダのファイルを全部まとめて選べます。
+        誰が未提出かも表示されます。</span></div></li>
+      <li><div class="stepbody"><b>「勤務表を作成」を押す</b>
+        <span>数秒で原案ができます。人員が足りない月は、作る前に警告が出ます。</span></div></li>
+      <li><div class="stepbody"><b>中身を確認して直す</b>
+        <span>気になるところはマスを直接打ち替えられます。直したら「再チェック」で確認してください。</span></div></li>
+      <li><div class="stepbody"><b>コピーして貼り付ける</b>
+        <span>「タイムリフォーマー用にコピー」を押して、勤務表の画面に貼り付けます。</span></div></li>
+    </ol>
+  </div>
+
+  <h2>守っているきまり</h2>
+  <div class="panel">
+    <p style="margin:0 0 8px;font-size:14px">
+      作成した勤務表は、次の条件を満たすように組まれます。数値は施設の規定に合わせて変更できます。
+    </p>
+    <table>
+      <tr><th>勤務と勤務の間隔</th><td>11時間以上あける</td></tr>
+      <tr><th>連続して働く日数</th><td>5日まで</td></tr>
+      <tr><th>夜勤の連続</th><td>2回まで</td></tr>
+      <tr><th>夜勤の回数</th><td>1か月8回まで</td></tr>
+      <tr><th>組んではいけない並び</th><td>勤務時刻から自動で判定（例：日勤の翌日に深夜など）</td></tr>
+      <tr><th>そのほか</th><td>必要人数を満たすこと、各勤務にリーダーを置くこと、
+        夜勤の回数と週末の休みが偏らないこと</td></tr>
+    </table>
+    <p class="note">
+      日本看護協会「夜勤・交代制勤務に関するガイドライン」の勤務編成の基準をもとにしています。
+    </p>
+  </div>
+
+  <h2>個人情報について</h2>
+  <div class="panel">
+    <div class="okbox">
+      <b>入力した名前や希望休が、外部に送られることはありません。</b><br>
+      入力内容はお使いの端末のブラウザの中だけに保存され、インターネット上のどこにも送信されません。
+      検索で他人に見つかることもありません。
+    </div>
+    <table>
+      <tr><th>名前や希望休はどこに保存される？</th>
+          <td>使っている端末のブラウザの中だけです。サーバには一切送られません。</td></tr>
+      <tr><th>検索で出てしまわない？</th>
+          <td>出ません。入力したものはページの一部にならないため、検索する側からは見えません。
+              このページ自体も検索結果に出ない設定にしています。</td></tr>
+      <tr><th>患者さんの情報は？</th>
+          <td>入力する欄そのものがありません。扱うのは職員名と勤務記号だけです。</td></tr>
+      <tr><th>気をつけること</th>
+          <td>共用のパソコンで使うと、入力した内容が次に使う人にも見えます。
+              共用機で使ったあとは、師長のかたが画面の「勤務だけ消す」などで消してください。<br>
+              また、提出したファイルには自分の名前が入っています。置き場所は指示されたフォルダにしてください。</td></tr>
+    </table>
+  </div>
+
+  <p style="margin-top:26px"><a class="btn" href="../">ツールを開く</a></p>
+</div>
+</body>
+</html>
