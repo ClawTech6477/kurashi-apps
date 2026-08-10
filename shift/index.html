@@ -121,6 +121,15 @@
 <div class="view on" id="viewN">
   <div class="panel">
     <ul class="steps">
+      <li class="step" id="stepLoad">
+        <h3>はじめに、名簿を読み込みます</h3>
+        <button class="ghost" id="nLoadBtn">共有フォルダの「勤務表設定.json」を選ぶ</button>
+        <input type="file" id="nLoadFile" accept=".json" hidden>
+        <div class="hint" id="nLoadHint">
+          最初の1回だけです。次からはこのパソコンでは省略できます。
+        </div>
+      </li>
+
       <li class="step">
         <h3>お名前を選んでください</h3>
         <select id="nName" style="font-size:17px;padding:10px;min-width:220px"></select>
@@ -178,6 +187,18 @@
       <button class="ghost small" id="clearReq">希望休をすべて消す</button>
     </div>
     <div id="reqSummary" class="hint">まだ取り込んでいません。</div>
+  </div>
+
+  <div class="panel">
+    <h2>看護師へ配る名簿を書き出す</h2>
+    <div class="row">
+      <button id="expCfg">配布用の「勤務表設定.json」を書き出す</button>
+    </div>
+    <p class="hint">
+      職員を登録・変更したら、これを押して<b>共有フォルダに置いてください</b>。
+      看護師のかたは、どのパソコンからでもこのファイルを読み込めば自分の名前が出ます。
+      パソコンごとに職員を登録し直す必要はありません。
+    </p>
   </div>
 
   <details class="panel" id="dStaff">
@@ -638,10 +659,12 @@ function renderNurse(){
   // 「名前が入れられない」に見えるので、何をすればよいか明示する。
   if(!staff.length){
     $("nNameHint").innerHTML =
-      '<span style="color:#b45309;font-weight:600">まだ職員が登録されていません。'
-      + '師長のかたが「師長のかた（勤務表を作る）」タブで職員を登録してから使ってください。</span>';
+      '<span style="color:#b45309;font-weight:600">名簿がまだ読み込まれていません。'
+      + '上の「共有フォルダの勤務表設定.jsonを選ぶ」を押してください。</span>';
   }else{
     $("nNameHint").textContent = "名前が無い場合は師長にお伝えください。";
+    // 読み込み済みなら案内を控えめにする(毎回読む必要は無いため)
+    $("nLoadHint").textContent = "名簿は読み込み済みです。変更があったときだけ押してください。";
   }
   const cur = $("nName").value;
   $("nName").innerHTML = `<option value="">— 選んでください —</option>` +
@@ -674,6 +697,47 @@ function renderNurse(){
   const arr=[...myPick].sort((a,b)=>a-b);
   $("nList").textContent = arr.length ? "選択中： "+arr.map(d=>d+"日").join("、") : "";
 }
+/* 配布用の設定ファイル。職員名簿はここに入っていて、看護師はこれを読むだけでよい。
+   localStorageは端末ごとに独立しているため、PCが複数ある職場では
+   これが無いと看護師の画面に名前が出ない(2026-08-10にUU指摘で判明) */
+$("expCfg").onclick = ()=>{
+  if(!staff.length){ alert("先に職員を登録してください"); return; }
+  const cfg = {type:"勤務表設定", year:Number($("year").value), month:Number($("month").value),
+               ward:$("ward").value, reqLimit:Number($("reqLimit").value),
+               staff, shifts, forbidden,
+               rules:{minInterval:Number($("minInterval").value)||11,
+                      maxConsecWork:Number($("maxConsecWork").value)||5,
+                      maxConsecNight:Number($("maxConsecNight").value)||2,
+                      maxNightPerMonth:Number($("maxNightPerMonth").value)||8}};
+  const b=new Blob([JSON.stringify(cfg,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(b);
+  a.download="勤務表設定.json"; a.click(); URL.revokeObjectURL(a.href);
+  alert("書き出しました。共有フォルダに置いて、看護師のかたに読み込んでもらってください。");
+};
+
+$("nLoadBtn").onclick = ()=>$("nLoadFile").click();
+$("nLoadFile").onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const c=JSON.parse(rd.result);
+      if(c.type!=="勤務表設定" || !Array.isArray(c.staff)) throw 0;
+      staff=c.staff; shifts=c.shifts||shifts; forbidden=c.forbidden||forbidden;
+      if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
+      if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
+      if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
+                   $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
+      persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid(); renderNurse();
+      $("nLoadHint").innerHTML='<span style="color:#166534;font-weight:600">'
+        + staff.length + '名の名簿を読み込みました。次はお名前を選んでください。</span>';
+    }catch(err){
+      alert("このファイルは読み込めませんでした。師長が書き出した「勤務表設定.json」を選んでください。");
+    }
+  };
+  rd.readAsText(f); e.target.value="";
+};
+
 $("nName").onchange = ()=>{
   const nm = $("nName").value;
   myPick = new Set(requests[nm] || []);
