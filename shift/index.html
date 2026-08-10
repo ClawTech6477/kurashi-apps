@@ -72,6 +72,8 @@
   table{border-collapse:collapse;font-size:13px}
   th,td{border:1px solid var(--line);padding:3px 5px;text-align:center;white-space:nowrap}
   th{background:#faf9f7;font-size:11px;color:var(--sub);font-weight:600}
+  th.dw{width:44px} th.dw.su{color:#b91c1c} th.dw.sa{color:#1d4ed8}
+  td.dwcell input{width:42px;text-align:center}
   .nm{text-align:left;position:sticky;left:0;background:#fff;z-index:1;min-width:110px}
   th.nm{background:#faf9f7;z-index:2}
   .scroll{overflow:auto;max-height:60vh}
@@ -217,16 +219,30 @@
   </details>
 
   <details class="panel" id="dShift">
-    <summary>勤務区分と必要人数</summary>
+    <summary>勤務区分と必要人数（曜日ごとに設定できます）</summary>
     <div style="margin-top:12px" class="scroll">
       <table id="shiftTbl">
         <thead><tr><th>記号</th><th>名称</th><th>種別</th><th>開始</th><th>終了</th>
-          <th>平日の必要数</th><th>土日の必要数</th><th>リーダー必須</th><th></th></tr></thead>
+          <th class="dw su">日</th><th class="dw">月</th><th class="dw">火</th><th class="dw">水</th>
+          <th class="dw">木</th><th class="dw">金</th><th class="dw sa">土</th>
+          <th>リーダー<br>必須</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
-    <div class="row" style="margin-top:10px"><button class="ghost small" id="addShift">＋ 勤務区分を追加</button></div>
-    <p class="hint">種別「夜勤」にすると夜勤回数・夜勤連続の制限がかかります。時刻を変えると禁止パターンも作り直せます。</p>
+    <div class="row" style="margin-top:10px">
+      <button class="ghost small" id="addShift">＋ 勤務区分を追加</button>
+      <span class="hint" style="margin:0">
+        <b>0を入れるとその曜日はその勤務を組みません。</b>
+        例：遅番を火・水・土・日だけにするなら、月木金を0にします。
+      </span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:1">
+        <label>祝日（日にちをカンマ区切り。日曜と同じ人数で組みます）</label>
+        <input type="text" id="holidays" placeholder="例: 21,22,23" style="width:100%;max-width:320px">
+      </div>
+    </div>
+    <p class="hint">種別「夜勤」にすると夜勤回数・夜勤連続の制限がかかります。</p>
   </details>
 
   <details class="panel" id="dRules">
@@ -330,6 +346,21 @@ function deriveForbidden(shifts, minInterval){
 function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
 function isWeekend(y,m,d){ const w=new Date(y,m-1,d).getDay(); return w===0||w===6; }
 
+/* 必要人数の取得。曜日ごとに人数も勤務の有無も変わる職場があるため
+   (例: 準夜は月水金だけ4人、遅番は火水土日だけ)、need は曜日別の配列で持つ。
+   need.byDow = [日,月,火,水,木,金,土]。0を入れればその曜日はその勤務を組まない。
+   祝日はholidaysに日付を入れると日曜と同じ扱いにする。
+   旧形式 {weekday, weekend} のデータもそのまま読めるようにしてある。 */
+function needOf(sh, y, m, d, holidays){
+  const w = new Date(y, m-1, d).getDay();
+  const isHol = holidays && holidays.indexOf(d) >= 0;
+  const dow = isHol ? 0 : w;
+  if(sh.need && Array.isArray(sh.need.byDow)) return sh.need.byDow[dow] ?? 0;
+  // 後方互換
+  return (dow===0||dow===6) ? (sh.need.weekend ?? sh.need.weekday ?? 0)
+                            : (sh.need.weekday ?? 0);
+}
+
 const DEFAULT_WEIGHTS = {
   need:1000, forbidden:800, interval:600, consecWork:500, consecNight:500,
   nightMax:400, request:300, leader:250, restAfter:150, fairNight:40, fairWeekend:20,
@@ -357,11 +388,11 @@ function makeCtx(cfg, grid){
 
 /* ── その日だけで決まるペナルティ ─────────────────── */
 function calcDay(ctx, d, sink){
-  const {cfg,W,grid,weekend} = ctx;
+  const {cfg,W,grid} = ctx;
   let pen = 0;
   cfg.shifts.forEach(sh=>{
     if(sh.kind==="off") return;
-    const need = weekend[d] ? (sh.need.weekend ?? sh.need.weekday) : sh.need.weekday;
+    const need = needOf(sh, cfg.year, cfg.month, d+1, cfg.holidays);
     let n = 0, hasLeader = false;
     for(let i=0;i<cfg.staff.length;i++){
       if(grid[i][d]===sh.code){ n++; if(cfg.staff[i].isLeader) hasLeader = true; }
@@ -476,10 +507,9 @@ function feasibility(cfg){
   const msgs = [];
   let nightSlots = 0, daySlots = 0;
   for(let d=1; d<=nd; d++){
-    const wk = isWeekend(cfg.year, cfg.month, d);
     cfg.shifts.forEach(sh=>{
       if(sh.kind==="off") return;
-      const n = wk ? (sh.need.weekend ?? sh.need.weekday) : sh.need.weekday;
+      const n = needOf(sh, cfg.year, cfg.month, d, cfg.holidays);
       if(sh.kind==="night") nightSlots += n; else daySlots += n;
     });
   }
@@ -521,9 +551,8 @@ function build(cfg, opts={}){
   const work = cfg.shifts.filter(s=>s.kind!=="off")
     .slice().sort((a,b)=>(a.kind==="night"?0:1)-(b.kind==="night"?0:1));
   for(let d=0; d<nd; d++){
-    const wk = isWeekend(cfg.year, cfg.month, d+1);
     work.forEach(sh=>{
-      const need = wk ? (sh.need.weekend ?? sh.need.weekday) : sh.need.weekday;
+      const need = needOf(sh, cfg.year, cfg.month, d+1, cfg.holidays);
       let have = 0;
       for(let i=0;i<ns;i++) if(grid[i][d]===sh.code) have++;
       const cands = [];
@@ -620,6 +649,10 @@ function mulberry32(a){
   };
 }
 
+if (false) {
+  module.exports = {build, evaluate, feasibility, deriveForbidden, needOf,
+                    intervalHours, shiftSpan, daysInMonth, isWeekend, DEFAULT_WEIGHTS};
+}
 
 /* ============ ここからUI ============ */
 const $ = id=>document.getElementById(id);
@@ -627,12 +660,20 @@ const esc = s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;
 const LS = "shiftmaker:v2";
 const OFF = "休";
 
+// need.byDow は [日,月,火,水,木,金,土]。0にするとその曜日はその勤務を組まない
 let shifts = [
-  {code:"日",name:"日勤",kind:"day",  start:"08:30",end:"17:15",need:{weekday:8,weekend:5},needLeader:true},
-  {code:"準",name:"準夜",kind:"night",start:"16:30",end:"01:15",need:{weekday:3,weekend:3},needLeader:true},
-  {code:"深",name:"深夜",kind:"night",start:"00:30",end:"09:15",need:{weekday:3,weekend:3},needLeader:true},
-  {code:"休",name:"休み",kind:"off",  start:"00:00",end:"00:00",need:{weekday:0,weekend:0},needLeader:false},
+  {code:"日",name:"日勤",kind:"day",  start:"08:30",end:"17:15",need:{byDow:[5,8,8,8,8,8,5]},needLeader:true},
+  {code:"準",name:"準夜",kind:"night",start:"16:30",end:"01:15",need:{byDow:[3,3,3,3,3,3,3]},needLeader:true},
+  {code:"深",name:"深夜",kind:"night",start:"00:30",end:"09:15",need:{byDow:[3,3,3,3,3,3,3]},needLeader:true},
+  {code:"休",name:"休み",kind:"off",  start:"00:00",end:"00:00",need:{byDow:[0,0,0,0,0,0,0]},needLeader:false},
 ];
+// 旧形式({weekday,weekend})で保存されたデータを曜日別へ変換する
+function migrateNeed(sh){
+  if(sh.need && Array.isArray(sh.need.byDow)) return sh;
+  const wd = sh.need?.weekday ?? 0, we = sh.need?.weekend ?? wd;
+  sh.need = {byDow:[we,wd,wd,wd,wd,wd,we]};
+  return sh;
+}
 let staff = [];
 let forbidden = [];
 let requests = {};    // 氏名 -> [日(1始まり), ...]   ← 希望休のみ
@@ -704,7 +745,7 @@ $("expCfg").onclick = ()=>{
   if(!staff.length){ alert("先に職員を登録してください"); return; }
   const cfg = {type:"勤務表設定", year:Number($("year").value), month:Number($("month").value),
                ward:$("ward").value, reqLimit:Number($("reqLimit").value),
-               staff, shifts, forbidden,
+               holidays:$("holidays").value, staff, shifts, forbidden,
                rules:{minInterval:Number($("minInterval").value)||11,
                       maxConsecWork:Number($("maxConsecWork").value)||5,
                       maxConsecNight:Number($("maxConsecNight").value)||2,
@@ -726,6 +767,8 @@ $("nLoadFile").onchange = e=>{
       staff=c.staff; shifts=c.shifts||shifts; forbidden=c.forbidden||forbidden;
       if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
       if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
+      if(c.holidays!=null)$("holidays").value=c.holidays;
+      shifts=shifts.map(migrateNeed);
       if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
                    $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
       persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid(); renderNurse();
@@ -924,18 +967,20 @@ function renderShifts(){
   const tb=$("shiftTbl").querySelector("tbody"); tb.innerHTML="";
   shifts.forEach((s,i)=>{
     const tr=document.createElement("tr");
+    const dowCells = s.need.byDow.map(v=>
+      `<td class="dwcell"><input type="number" value="${v}" min="0"></td>`).join("");
     tr.innerHTML=`<td><input type="text" value="${esc(s.code)}" style="width:46px"></td>
       <td><input type="text" value="${esc(s.name)}" style="width:96px"></td>
       <td><select>${Object.entries(KIND_LABEL).map(([k,v])=>`<option value="${k}"${s.kind===k?" selected":""}>${v}</option>`).join("")}</select></td>
       <td><input type="time" value="${s.start}"></td><td><input type="time" value="${s.end}"></td>
-      <td><input type="number" value="${s.need.weekday}" min="0"></td>
-      <td><input type="number" value="${s.need.weekend}" min="0"></td>
+      ${dowCells}
       <td><input type="checkbox"${s.needLeader?" checked":""}></td>
       <td><button style="border:none;background:none;color:#6b6b6b;cursor:pointer">×</button></td>`;
     const el=tr.querySelectorAll("input,select");
     const commit=()=>{ shifts[i]={code:el[0].value.trim()||s.code,name:el[1].value.trim(),kind:el[2].value,
         start:el[3].value,end:el[4].value,
-        need:{weekday:Number(el[5].value)||0,weekend:Number(el[6].value)||0},needLeader:el[7].checked};
+        need:{byDow:[5,6,7,8,9,10,11].map(k=>Number(el[k].value)||0)},
+        needLeader:el[12].checked};
       persist(); renderFbSelects(); renderGrid(); };
     el.forEach(e=>e.addEventListener("change",commit));
     tr.querySelector("button").onclick=()=>{
@@ -946,7 +991,7 @@ function renderShifts(){
 }
 $("addShift").onclick=()=>{
   shifts.splice(shifts.length-1,0,{code:"新",name:"新勤務",kind:"day",start:"08:30",end:"17:15",
-    need:{weekday:0,weekend:0},needLeader:false});
+    need:{byDow:[0,0,0,0,0,0,0]},needLeader:false});
   persist(); renderShifts(); renderFbSelects(); renderGrid();
 };
 
@@ -987,8 +1032,9 @@ function cfgNow(){
     const [i,d]=k.split(",").map(Number);
     if(staff[i] && cells[k]) (req[staff[i].name] ||= {})[d+1]=cells[k];
   });
+  const hol = ($("holidays").value||"").split(/[,、\s]+/).map(Number).filter(n=>n>=1&&n<=31);
   return {year:Number($("year").value), month:Number($("month").value), shifts, staff, forbidden,
-    requests:req,
+    requests:req, holidays:hol,
     rules:{minInterval:Number($("minInterval").value)||11,
            maxConsecWork:Number($("maxConsecWork").value)||5,
            maxConsecNight:Number($("maxConsecNight").value)||2,
@@ -1121,10 +1167,11 @@ $("clearGrid").onclick=()=>{
 /* --- 保存 --- */
 function persist(){
   try{ localStorage.setItem(LS,JSON.stringify({shifts,staff,forbidden,requests,cells,manualFix,
-    year:$("year").value,month:$("month").value,ward:$("ward").value,reqLimit:$("reqLimit").value})); }catch(e){}
+    year:$("year").value,month:$("month").value,ward:$("ward").value,
+    reqLimit:$("reqLimit").value,holidays:$("holidays").value})); }catch(e){}
 }
 ["year","month"].forEach(id=>$(id).addEventListener("change",()=>{ renderGrid(); renderNurse(); persist(); }));
-["ward","reqLimit"].forEach(id=>$(id).addEventListener("change",persist));
+["ward","reqLimit","holidays"].forEach(id=>$(id).addEventListener("change",persist));
 
 (function init(){
   let s=null; try{ s=JSON.parse(localStorage.getItem(LS)); }catch(e){}
@@ -1133,7 +1180,9 @@ function persist(){
     requests=s.requests||{}; cells=s.cells||{}; manualFix=s.manualFix||{};
     if(s.year)$("year").value=s.year; if(s.month)$("month").value=s.month;
     if(s.ward)$("ward").value=s.ward; if(s.reqLimit)$("reqLimit").value=s.reqLimit;
+    if(s.holidays)$("holidays").value=s.holidays;
   }
+  shifts = shifts.map(migrateNeed);   // 旧形式で保存済みのデータを曜日別へ移行
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
   renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
   refreshSubmitHint();
