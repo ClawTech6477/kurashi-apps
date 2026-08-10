@@ -300,6 +300,14 @@
       <span class="hint" style="margin:0">0にするとこの決まりを使いません。</span>
     </div>
 
+    <div class="row" style="margin-top:12px">
+      <div><label>土日の連休を 1人あたり月</label><input type="number" id="weRun" value="1" min="0"> 回以上</div>
+      <div><label>ふつうの連休(2連休)を 月</label><input type="number" id="anyRun" value="0" min="0"> 回以上</div>
+    </div>
+    <p class="hint">
+      0にするとその決まりを使いません。人数と必要人数の都合で足りない場合は、作成前に上限をお知らせします。
+    </p>
+
     <h2 style="margin-top:20px">組んではいけない並び</h2>
     <div id="seqList"></div>
     <div class="row" style="margin-top:8px">
@@ -442,7 +450,7 @@ const DEFAULT_WEIGHTS = {
   // 40名30日で違反が10件前後残った(2026-08-10)。強めにすると0件になる。
   need:1000, forbidden:2000, interval:1500, consecWork:800, consecNight:2000,
   nightMax:400, request:300, leader:250, restAfter:2000, fairNight:40, fairWeekend:20,
-  seq:2000, dowRule:1500, cntMin:900, cntMax:900,
+  seq:2000, dowRule:1500, cntMin:900, cntMax:900, restBlock:900,
 };
 
 /* ── 内部状態をまとめて持つ ────────────────────────── */
@@ -607,6 +615,35 @@ function calcStaff(ctx, i, sink){
     }
   });
 
+  // 連休の確保(2026-08-10)。「土日の連休を月◯回以上」「2連休を月◯回以上」を一般に扱う。
+  //   minLen      : 何日続けて休みなら1回と数えるか
+  //   minCount    : 月に何回必要か
+  //   weekendOnly : trueなら土曜と、その翌日の日曜が両方休みのものだけ数える
+  (R.restBlocks||[]).forEach(rb=>{
+    if(!rb || !rb.minLen || !rb.minCount) return;
+    let cnt=0, run=0, runStart=0;
+    const isOff = d => { const sh=byCode[row[d]]; return sh && sh.kind==="off"; };
+    for(let d=0; d<=nd; d++){
+      if(d<nd && isOff(d)){ if(run===0) runStart=d; run++; continue; }
+      if(run >= rb.minLen){
+        if(!rb.weekendOnly) cnt++;
+        else {
+          // 連休の中に「土曜とその翌日の日曜」が入っているか
+          for(let k=runStart; k<runStart+run-1; k++){
+            if(dowOf(cfg.year,cfg.month,k+1,cfg.holidays)===6 &&
+               dowOf(cfg.year,cfg.month,k+2,cfg.holidays)===0){ cnt++; break; }
+          }
+        }
+      }
+      run=0;
+    }
+    if(cnt < rb.minCount){
+      pen += (rb.minCount-cnt)*W.restBlock;
+      if(sink) sink.push({day:0,type:"連休",
+        msg:`${st.name}: ${rb.weekendOnly?"土日の":""}${rb.minLen}連休が${cnt}回（月${rb.minCount}回以上が必要）`});
+    }
+  });
+
   const cap = Math.min(st.maxNight ?? R.maxNightPerMonth, R.maxNightPerMonth);
   if(nights > cap){
     pen += (nights-cap)*W.nightMax;
@@ -655,6 +692,7 @@ function evaluate(cfg, grid){
    人数が足りずどう組んでも制約を破る場合は、無理に作らず先に知らせる。 */
 function feasibility(cfg){
   const nd = daysInMonth(cfg.year, cfg.month);
+  const R = cfg.rules || {};
   const msgs = [];
   let nightSlots = 0, daySlots = 0;
   for(let d=1; d<=nd; d++){
@@ -664,7 +702,6 @@ function feasibility(cfg){
       if(sh.kind==="night") nightSlots += n; else daySlots += n;
     });
   }
-  const R = cfg.rules;
   const cap = cfg.staff.filter(s=>s.canNight)
     .reduce((t,s)=>t + Math.min(s.maxNight ?? R.maxNightPerMonth, R.maxNightPerMonth), 0);
   if(nightSlots > cap){
@@ -672,6 +709,34 @@ function feasibility(cfg){
     msgs.push(`夜勤の必要のべ人数 ${nightSlots} に対し、夜勤可能な人員の上限合計は ${cap} です。`
             + `このままでは誰かが月${R.maxNightPerMonth}回を超えます（夜勤できる人があと約${short}名必要）。`);
   }
+  // 土日連休が何回まで取れるかの上限を見積もる。
+  // ある週末で「土日とも休み」にできる人数は、多くても (全員 - その週末に出る人数)。
+  // 土曜に出る人と日曜に出る人が同じ顔ぶれのときが最大なので max(土,日) で見る。
+  (R.restBlocks||[]).forEach(rb=>{
+    if(!rb || !rb.weekendOnly || !rb.minCount) return;
+    let pairs=0, capPerPair=Infinity;
+    for(let d=1; d<nd; d++){
+      if(new Date(cfg.year,cfg.month-1,d).getDay()!==6) continue;
+      pairs++;
+      let sat=0, sun=0;
+      cfg.shifts.forEach(sh=>{
+        if(sh.kind==="off") return;
+        sat += needOf(sh,cfg.year,cfg.month,d,cfg.holidays);
+        sun += needOf(sh,cfg.year,cfg.month,d+1,cfg.holidays);
+      });
+      capPerPair = Math.min(capPerPair, cfg.staff.length - Math.max(sat,sun));
+    }
+    if(!pairs) return;
+    const capacity = pairs * Math.max(capPerPair,0);
+    const required = cfg.staff.length * rb.minCount;
+    if(required > capacity){
+      const maxCount = Math.floor(capacity / cfg.staff.length);
+      msgs.push(`土日の連休を1人あたり月${rb.minCount}回にするには、のべ ${required} 人分が必要ですが、`
+              + `この月の土日(${pairs}組)で確保できるのは最大 ${capacity} 人分です。`
+              + `いまの人数と必要人数では、1人あたり月${maxCount}回までが上限です。`);
+    }
+  });
+
   const leaders = cfg.staff.filter(s=>s.isLeader).length;
   const leadNeed = cfg.shifts.filter(s=>s.kind!=="off" && s.needLeader).length;
   if(leaders < leadNeed){
@@ -902,11 +967,16 @@ $("expCfg").onclick = ()=>{
                ward:$("ward").value, reqLimit:Number($("reqLimit").value),
                holidays:$("holidays").value, staff, shifts, forbidden, forbiddenSeq, dowRules,
                oanRun:Number($("oanRun").value)||0, oanDays:Number($("oanDays").value)||0,
+               weRun:Number($("weRun").value)||0, anyRun:Number($("anyRun").value)||0,
                rules:{minInterval:Number($("minInterval").value)||11,
                       maxConsecWork:Number($("maxConsecWork").value)||5,
                       maxConsecNight:Number($("maxConsecNight").value)||2,
                       maxNightPerMonth:Number($("maxNightPerMonth").value)||8,
-           offAfterNightRun:{run:Number($("oanRun").value)||0, days:Number($("oanDays").value)||0}}};
+           offAfterNightRun:{run:Number($("oanRun").value)||0, days:Number($("oanDays").value)||0},
+           restBlocks:[
+             {minLen:2, minCount:Number($("weRun").value)||0,  weekendOnly:true},
+             {minLen:2, minCount:Number($("anyRun").value)||0, weekendOnly:false},
+           ].filter(r=>r.minCount>0)}};
   const b=new Blob([JSON.stringify(cfg,null,1)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(b);
   a.download="勤務表設定.json"; a.click(); URL.revokeObjectURL(a.href);
@@ -925,6 +995,7 @@ $("nLoadFile").onchange = e=>{
       if(c.forbiddenSeq) forbiddenSeq=c.forbiddenSeq;
       if(c.dowRules) dowRules=c.dowRules;
       if(c.oanRun!=null)$("oanRun").value=c.oanRun; if(c.oanDays!=null)$("oanDays").value=c.oanDays;
+      if(c.weRun!=null)$("weRun").value=c.weRun; if(c.anyRun!=null)$("anyRun").value=c.anyRun;
       if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
       if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
       if(c.holidays!=null)$("holidays").value=c.holidays;
@@ -1392,7 +1463,12 @@ function cfgNow(){
     rules:{minInterval:Number($("minInterval").value)||11,
            maxConsecWork:Number($("maxConsecWork").value)||5,
            maxConsecNight:Number($("maxConsecNight").value)||2,
-           maxNightPerMonth:Number($("maxNightPerMonth").value)||8}};
+           maxNightPerMonth:Number($("maxNightPerMonth").value)||8,
+           offAfterNightRun:{run:Number($("oanRun").value)||0, days:Number($("oanDays").value)||0},
+           restBlocks:[
+             {minLen:2, minCount:Number($("weRun").value)||0,  weekendOnly:true},
+             {minLen:2, minCount:Number($("anyRun").value)||0, weekendOnly:false},
+           ].filter(r=>r.minCount>0)}};
 }
 function renderGrid(){
   const y=Number($("year").value), m=Number($("month").value), nd=daysInMonth(y,m);
@@ -1523,7 +1599,8 @@ function persist(){
   try{ localStorage.setItem(LS,JSON.stringify({shifts,staff,forbidden,forbiddenSeq,dowRules,requests,cells,manualFix,
     year:$("year").value,month:$("month").value,ward:$("ward").value,
     reqLimit:$("reqLimit").value,holidays:$("holidays").value,mode:currentMode(),submitted,
-    oanRun:$("oanRun").value,oanDays:$("oanDays").value})); }catch(e){}
+    oanRun:$("oanRun").value,oanDays:$("oanDays").value,
+    weRun:$("weRun").value,anyRun:$("anyRun").value})); }catch(e){}
 }
 ["year","month"].forEach(id=>$(id).addEventListener("change",()=>{ renderGrid(); renderNurse(); persist(); }));
 ["ward","reqLimit","holidays"].forEach(id=>$(id).addEventListener("change",persist));
@@ -1535,6 +1612,7 @@ function persist(){
     if(s.forbiddenSeq) forbiddenSeq=s.forbiddenSeq;
     if(s.dowRules) dowRules=s.dowRules;
     if(s.oanRun!=null)$("oanRun").value=s.oanRun; if(s.oanDays!=null)$("oanDays").value=s.oanDays;
+    if(s.weRun!=null)$("weRun").value=s.weRun; if(s.anyRun!=null)$("anyRun").value=s.anyRun;
     requests=s.requests||{}; cells=s.cells||{}; manualFix=s.manualFix||{};
     submitted=s.submitted||{};
     if(s.year)$("year").value=s.year; if(s.month)$("month").value=s.month;
