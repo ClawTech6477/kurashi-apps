@@ -192,6 +192,23 @@
   </div>
 
   <div class="panel">
+    <h2>希望休の集め方</h2>
+    <div class="row">
+      <label style="display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink)">
+        <input type="radio" name="mode" id="modeLocal" value="local" style="width:auto">
+        このパソコン1台で全員に入力してもらう（ファイル不要）
+      </label>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink)">
+        <input type="radio" name="mode" id="modeFile" value="file" style="width:auto">
+        それぞれのパソコンで入力し、共有フォルダで集める
+      </label>
+    </div>
+    <p class="hint" id="modeHint"></p>
+  </div>
+
+  <div class="panel" id="cfgPanel">
     <h2>看護師へ配る名簿を書き出す</h2>
     <div class="row">
       <button id="expCfg">配布用の「勤務表設定.json」を書き出す</button>
@@ -849,6 +866,27 @@ $("nSetDir").onclick = async ()=>{
   }
 };
 
+/* 集め方のモード。共有フォルダが無い/使いにくい職場のために、
+   1台のPCで全員に入力してもらう運用を用意する。この場合ファイルは一切発生せず、
+   入力はそのブラウザ内に溜まるので、師長は同じPCで「作成」を押すだけでよい。 */
+function currentMode(){ return $("modeLocal").checked ? "local" : "file"; }
+function applyMode(){
+  const local = currentMode()==="local";
+  $("cfgPanel").style.display = local ? "none" : "";
+  document.getElementById("stepLoad").style.display = local ? "none" : "";
+  $("nSetDir").style.display = local ? "none" : "";
+  $("modeHint").innerHTML = local
+    ? "看護師のかたは、このパソコンで順番に入力するだけです。<b>ファイルの受け渡しはありません。</b>"
+      + "入力は自動でこのパソコンに溜まり、下の勤務表にすぐ反映されます。"
+    : "師長が名簿を共有フォルダに置き、看護師のかたが各自のパソコンで読み込んで提出します。"
+      + "パソコンが複数ある職場向けです。";
+  refreshSubmitHint();
+  renderNurse();
+  persist();
+}
+$("modeLocal").onchange = applyMode;
+$("modeFile").onchange  = applyMode;
+
 $("nSubmit").onclick = async ()=>{
   const nm = $("nName").value;
   if(!nm){ alert("お名前を選んでください"); return; }
@@ -857,6 +895,19 @@ $("nSubmit").onclick = async ()=>{
   requests[nm] = data.days; persist();
   const text = JSON.stringify(data,null,1);
   const fname = `希望休_${y}${String(m).padStart(2,"0")}_${nm}.json`;
+
+  // ⓪ 1台で全員入力する運用では、ファイルを作らずこのまま受け付ける
+  if(currentMode()==="local"){
+    renderReqSummary(); renderGrid();
+    const done = Object.keys(requests).length, all = staff.length;
+    $("nDone").innerHTML = `<div class="okbox">
+      ${esc(nm)} さんの希望休（${data.days.length}日）を受け付けました。
+      <b>次の方にお願いします。</b>（提出済み ${done}／${all}名）</div>`;
+    // 次の人に前の人の選択が見えないよう戻す
+    myPick = new Set(); $("nName").value = "";
+    renderNurse();
+    return;
+  }
 
   // ① 設定済みのフォルダへ直接書く
   const h = await loadDirHandle();
@@ -1168,7 +1219,7 @@ $("clearGrid").onclick=()=>{
 function persist(){
   try{ localStorage.setItem(LS,JSON.stringify({shifts,staff,forbidden,requests,cells,manualFix,
     year:$("year").value,month:$("month").value,ward:$("ward").value,
-    reqLimit:$("reqLimit").value,holidays:$("holidays").value})); }catch(e){}
+    reqLimit:$("reqLimit").value,holidays:$("holidays").value,mode:currentMode()})); }catch(e){}
 }
 ["year","month"].forEach(id=>$(id).addEventListener("change",()=>{ renderGrid(); renderNurse(); persist(); }));
 ["ward","reqLimit","holidays"].forEach(id=>$(id).addEventListener("change",persist));
@@ -1181,11 +1232,13 @@ function persist(){
     if(s.year)$("year").value=s.year; if(s.month)$("month").value=s.month;
     if(s.ward)$("ward").value=s.ward; if(s.reqLimit)$("reqLimit").value=s.reqLimit;
     if(s.holidays)$("holidays").value=s.holidays;
+    if(s.mode==="file"){ $("modeFile").checked=true; } else { $("modeLocal").checked=true; }
   }
+  if(!$("modeLocal").checked && !$("modeFile").checked) $("modeLocal").checked = true;
   shifts = shifts.map(migrateNeed);   // 旧形式で保存済みのデータを曜日別へ移行
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
   renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
-  refreshSubmitHint();
+  applyMode();   // 集め方に応じて、名簿配布パネルや名簿読込の手順を出し分ける
   if(!staff.length){ show("S"); $("dStaff").open=true; }
 })();
 </script>
