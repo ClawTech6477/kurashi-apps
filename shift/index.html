@@ -265,6 +265,30 @@
     </p>
   </div>
 
+  <details class="panel" id="dWards">
+    <summary>病棟の元本（職員・勤務区分・ルールを病棟ごとに保存）</summary>
+    <p class="hint" style="margin-top:12px">
+      いまの<b>職員名簿・勤務区分・制約ルール・各種上限</b>を病棟の名前で保存しておき、
+      翌月や別の病棟の勤務表を作るときに呼び出せます。
+      <b>希望休と作成済みの勤務表は月ごとのものなので元本には入りません。</b>
+      この端末のブラウザに保存されるので、別のパソコンでも使うときは「ファイルに書き出す」を使ってください。
+    </p>
+    <div class="row" style="margin-top:4px">
+      <div><label>病棟の名前</label><input type="text" id="wardName" placeholder="例: 5A病棟" style="width:180px"></div>
+      <button id="wardSave">この内容を元本として保存</button>
+      <button class="ghost small" id="wardExport">ファイルに書き出す</button>
+      <button class="ghost small" id="wardImport">ファイルから取り込む</button>
+      <input type="file" id="wardFile" accept=".json" hidden>
+    </div>
+    <div class="scroll" style="max-height:260px;margin-top:12px">
+      <table id="wardTbl">
+        <thead><tr><th style="text-align:left">病棟</th><th>職員</th><th>勤務区分</th><th>保存日時</th><th></th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="wardHint" class="hint"></div>
+  </details>
+
   <details class="panel" id="dStaff">
     <summary>職員の登録</summary>
     <div style="margin-top:12px" class="scroll">
@@ -1179,29 +1203,191 @@ function renderNurse(){
 /* 配布用の設定ファイル。職員名簿はここに入っていて、看護師はこれを読むだけでよい。
    localStorageは端末ごとに独立しているため、PCが複数ある職場では
    これが無いと看護師の画面に名前が出ない(2026-08-10にUU指摘で判明) */
+/* 設定の組み立てと適用は collectCfg / applyCfg に集約する(2026-08-11)。
+   以前は「配布用の書き出し」「ファイル読み込み」「フォルダ読み込み」の3箇所に
+   同じ内容が写経されていて、項目を1つ足すたびに書き漏らしが起きていた
+   (reqWorkLimit と raNext を追加したとき実際に3箇所を直して回った)。
+   病棟の元本もこの2つを通すので、今後は増やすならここだけ直せばよい。
+   希望休・作成済みの勤務表は「月ごとのもの」なので設定には含めない。 */
+const CFG_INPUTS = ["year","month","ward","reqLimit","reqWorkLimit","holidays",
+                    "minInterval","maxConsecWork","maxConsecNight","maxNightPerMonth",
+                    "oanRun","oanDays","weRun","anyRun","raNext","raPrev"];
+const CFG_CHECKS = ["raNextOn","raPrevOn"];
+
+function collectCfg(){
+  const c = {type:"勤務表設定", staff, shifts, forbidden, forbiddenSeq, dowRules};
+  CFG_INPUTS.forEach(id=>{ c[id]=$(id).value; });
+  CFG_CHECKS.forEach(id=>{ c[id]=$(id).checked; });
+  const num = (id,dflt)=>Number($(id).value)||dflt;
+  // engine が読む形。上の生の値と重複するが、看護師側の画面や旧版との互換のため両方入れる
+  c.rules = {minInterval:num("minInterval",11), maxConsecWork:num("maxConsecWork",5),
+             maxConsecNight:num("maxConsecNight",2), maxNightPerMonth:num("maxNightPerMonth",8),
+             offAfterNightRun:{run:num("oanRun",0), days:num("oanDays",0)},
+             reqAdjacent:{next:$("raNextOn").checked?[$("raNext").value]:[],
+                          prev:$("raPrevOn").checked?[$("raPrev").value]:[]},
+             restBlocks:[{minLen:2,minCount:num("weRun",0),weekendOnly:true},
+                         {minLen:2,minCount:num("anyRun",0),weekendOnly:false}].filter(r=>r.minCount>0)};
+  return c;
+}
+
+/* opts.keepPeriod=true なら年月をいまのまま残す(病棟の元本を呼ぶときに使う。
+   元本を保存した当時の月に戻ってしまうと事故になるため)。 */
+function applyCfg(c, opts={}){
+  if(!c || !Array.isArray(c.staff)) return false;
+  staff = c.staff;
+  shifts = (c.shifts||shifts).map(migrateNeed);
+  forbidden = c.forbidden||forbidden;
+  if(c.forbiddenSeq) forbiddenSeq = c.forbiddenSeq;
+  if(c.dowRules) dowRules = c.dowRules;
+  CFG_INPUTS.forEach(id=>{
+    if(opts.keepPeriod && (id==="year"||id==="month")) return;
+    if(id==="raNext"||id==="raPrev") return;      // 選択肢を作った後でないと入らない
+    if(c[id]!=null && c[id]!=="") $(id).value = c[id];
+  });
+  CFG_CHECKS.forEach(id=>{ if(c[id]!=null) $(id).checked = !!c[id]; });
+  // 旧形式(rules の中にしか無い)も拾う
+  if(c.rules){
+    const R=c.rules;
+    [["minInterval",R.minInterval],["maxConsecWork",R.maxConsecWork],
+     ["maxConsecNight",R.maxConsecNight],["maxNightPerMonth",R.maxNightPerMonth]]
+      .forEach(([id,v])=>{ if(v!=null) $(id).value=v; });
+    if(R.offAfterNightRun){
+      if(R.offAfterNightRun.run!=null)  $("oanRun").value  = R.offAfterNightRun.run;
+      if(R.offAfterNightRun.days!=null) $("oanDays").value = R.offAfterNightRun.days;
+    }
+  }
+  renderStaff(); renderShifts(); renderFbSelects();
+  // raNext/raPrev は renderFbSelects が選択肢を作った後で入れる
+  ["raNext","raPrev"].forEach(id=>{
+    if(c[id] && shifts.some(x=>x.code===c[id])) $(id).value = c[id];
+  });
+  persist(); renderGrid(); renderReqSummary(); renderNurse();
+  return true;
+}
+
 $("expCfg").onclick = ()=>{
   if(!staff.length){ alert("先に職員を登録してください"); return; }
-  const cfg = {type:"勤務表設定", year:Number($("year").value), month:Number($("month").value),
-               ward:$("ward").value, reqLimit:Number($("reqLimit").value),
-               reqWorkLimit:Number($("reqWorkLimit").value),
-               raNextOn:$("raNextOn").checked, raNext:$("raNext").value,
-               raPrevOn:$("raPrevOn").checked, raPrev:$("raPrev").value,
-               holidays:$("holidays").value, staff, shifts, forbidden, forbiddenSeq, dowRules,
-               oanRun:Number($("oanRun").value)||0, oanDays:Number($("oanDays").value)||0,
-               weRun:Number($("weRun").value)||0, anyRun:Number($("anyRun").value)||0,
-               rules:{minInterval:Number($("minInterval").value)||11,
-                      maxConsecWork:Number($("maxConsecWork").value)||5,
-                      maxConsecNight:Number($("maxConsecNight").value)||2,
-                      maxNightPerMonth:Number($("maxNightPerMonth").value)||8,
-           offAfterNightRun:{run:Number($("oanRun").value)||0, days:Number($("oanDays").value)||0},
-           restBlocks:[
-             {minLen:2, minCount:Number($("weRun").value)||0,  weekendOnly:true},
-             {minLen:2, minCount:Number($("anyRun").value)||0, weekendOnly:false},
-           ].filter(r=>r.minCount>0)}};
+  const cfg = collectCfg();
   const b=new Blob([JSON.stringify(cfg,null,1)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(b);
   a.download="勤務表設定.json"; a.click(); URL.revokeObjectURL(a.href);
   alert("書き出しました。共有フォルダに置いて、看護師のかたに読み込んでもらってください。");
+};
+
+/* ══════════ 病棟の元本(2026-08-11) ══════════
+   病棟ごとに職員名簿・勤務区分・ルールを保存して呼び出せるようにする。
+   勤務表本体(cells)と希望休(requests)は月ごとのものなので元本には入れない。
+   混ざると別病棟の名前の希望休が残って事故になるため、呼び出し時に消す確認を出す。 */
+const WARDS_LS = "shiftmaker:wards:v1";
+let wards = {};
+
+function loadWards(){
+  try{ const w=JSON.parse(localStorage.getItem(WARDS_LS)); if(w && typeof w==="object") wards=w; }
+  catch(e){ wards={}; }
+}
+function saveWards(){
+  try{ localStorage.setItem(WARDS_LS, JSON.stringify(wards)); }
+  catch(e){ alert("保存できませんでした（ブラウザの保存容量がいっぱいの可能性があります）"); }
+}
+function renderWards(){
+  const names = Object.keys(wards).sort();
+  const tb = $("wardTbl").querySelector("tbody");
+  tb.innerHTML = names.length ? names.map(n=>{
+    const w = wards[n];
+    return `<tr>
+      <td style="text-align:left">${esc(n)}</td>
+      <td>${(w.staff||[]).length}名</td>
+      <td>${(w.shifts||[]).length}種</td>
+      <td>${esc(w.savedAt||"—")}</td>
+      <td><button class="ghost small wload" data-n="${esc(n)}">呼び出す</button></td>
+      <td><button class="wdel" data-n="${esc(n)}"
+           style="border:none;background:none;color:#6b6b6b;cursor:pointer">×</button></td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="6" style="text-align:left;color:var(--sub)">まだ保存された病棟はありません。</td></tr>`;
+
+  tb.querySelectorAll(".wload").forEach(b=> b.onclick = ()=>loadWard(b.dataset.n));
+  tb.querySelectorAll(".wdel").forEach(b=> b.onclick = ()=>{
+    const n=b.dataset.n;
+    if(!confirm(`「${n}」の元本を削除します。よろしいですか？\n（いま画面に出ている勤務表や希望休は消えません）`)) return;
+    delete wards[n]; saveWards(); renderWards();
+  });
+  $("wardHint").textContent = names.length
+    ? `${names.length}件保存されています。`
+    : "「この内容を元本として保存」で、いまの職員とルールを登録できます。";
+}
+
+function loadWard(n){
+  const w = wards[n];
+  if(!w){ alert("その病棟は見つかりませんでした。"); return; }
+  // いまの月の作業が残っていたら、消えることを先に伝える
+  const hasReq = Object.keys(requests).length, hasGrid = Object.keys(cells).length;
+  if(hasReq || hasGrid){
+    const what = [hasReq?`希望休 ${hasReq}名分`:null, hasGrid?"作成済みの勤務表":null].filter(Boolean).join("と");
+    if(!confirm(`「${n}」の元本を呼び出します。\n\n`
+      + `いま入っている${what}は、別の病棟のものが混ざらないように消えます。\n`
+      + `職員名簿・勤務区分・ルールが「${n}」の内容に入れ替わります。\n\n`
+      + `よろしいですか？`)) return;
+  }
+  requests={}; submitted={}; cells={}; manualFix={};
+  // 年月はいまのまま残す。元本を保存した当時の月に戻ると事故になるため
+  if(!applyCfg(w, {keepPeriod:true})){ alert("この元本は読み込めませんでした。"); return; }
+  $("wardName").value = n;
+  persist(); renderVFolder(); renderReqSummary(); renderGrid(); renderNurse();
+  $("wardHint").innerHTML = `<span style="color:#166534;font-weight:600">`
+    + `「${esc(n)}」を呼び出しました（職員${(w.staff||[]).length}名）。`
+    + `年月は ${$("year").value}年${$("month").value}月 のままです。</span>`;
+}
+
+$("wardSave").onclick = ()=>{
+  if(!staff.length){ alert("先に職員を登録してください。"); return; }
+  let n = ($("wardName").value || $("ward").value || "").trim();
+  if(!n){ alert("病棟の名前を入れてください（例: 5A病棟）。"); return; }
+  if(wards[n] && !confirm(`「${n}」はすでに保存されています。いまの内容で上書きしますか？`)) return;
+  const c = collectCfg();
+  delete c.year; delete c.month;      // 月は元本に含めない
+  c.savedAt = new Date().toLocaleString("ja-JP",{year:"numeric",month:"2-digit",
+                day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  wards[n] = c; saveWards(); renderWards();
+  $("wardName").value = n;
+  $("wardHint").innerHTML = `<span style="color:#166534;font-weight:600">`
+    + `「${esc(n)}」を保存しました（職員${staff.length}名 / 勤務区分${shifts.length}種）。</span>`;
+};
+
+$("wardExport").onclick = ()=>{
+  if(!Object.keys(wards).length){ alert("保存された病棟がありません。"); return; }
+  const data = {type:"病棟の元本", savedAt:new Date().toLocaleString("ja-JP"), wards};
+  const b=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(b);
+  a.download="病棟の元本.json"; a.click(); URL.revokeObjectURL(a.href);
+};
+
+$("wardImport").onclick = ()=>$("wardFile").click();
+$("wardFile").onchange = e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const d=JSON.parse(rd.result);
+      // 「病棟の元本」ファイルと、1病棟ぶんの「勤務表設定.json」の両方を受ける
+      let add={};
+      if(d && d.type==="病棟の元本" && d.wards) add=d.wards;
+      else if(d && d.type==="勤務表設定" && Array.isArray(d.staff)){
+        const n=(d.ward||"取り込んだ病棟").trim();
+        add[n]=Object.assign({}, d, {savedAt:new Date().toLocaleString("ja-JP")});
+      } else throw 0;
+      const names=Object.keys(add);
+      if(!names.length) throw 0;
+      const dup=names.filter(n=>wards[n]);
+      if(dup.length && !confirm(`同じ名前の病棟があります：${dup.join("、")}\n上書きしますか？`)) return;
+      names.forEach(n=>{ wards[n]=add[n]; });
+      saveWards(); renderWards();
+      $("wardHint").innerHTML = `<span style="color:#166534;font-weight:600">`
+        + `${names.length}件を取り込みました（${esc(names.join("、"))}）。</span>`;
+    }catch(err){
+      alert("このファイルは読み込めませんでした。「病棟の元本.json」または「勤務表設定.json」を選んでください。");
+    }
+  };
+  rd.readAsText(f); e.target.value="";
 };
 
 $("nLoadBtn").onclick = ()=>$("nLoadFile").click();
@@ -1211,25 +1397,7 @@ $("nLoadFile").onchange = e=>{
   rd.onload=()=>{
     try{
       const c=JSON.parse(rd.result);
-      if(c.type!=="勤務表設定" || !Array.isArray(c.staff)) throw 0;
-      staff=c.staff; shifts=(c.shifts||shifts).map(migrateNeed); forbidden=c.forbidden||forbidden;
-      if(c.forbiddenSeq) forbiddenSeq=c.forbiddenSeq;
-      if(c.dowRules) dowRules=c.dowRules;
-      if(c.oanRun!=null)$("oanRun").value=c.oanRun; if(c.oanDays!=null)$("oanDays").value=c.oanDays;
-      if(c.weRun!=null)$("weRun").value=c.weRun; if(c.anyRun!=null)$("anyRun").value=c.anyRun;
-      if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
-      if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
-      if(c.reqWorkLimit!=null)$("reqWorkLimit").value=c.reqWorkLimit;
-      if(c.raNextOn!=null)$("raNextOn").checked=!!c.raNextOn;
-      if(c.raPrevOn!=null)$("raPrevOn").checked=!!c.raPrevOn;
-      if(c.holidays!=null)$("holidays").value=c.holidays;
-      shifts=shifts.map(migrateNeed);
-      if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
-                   $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
-      persist(); renderStaff(); renderShifts(); renderFbSelects();
-      if(c.raNext && shifts.some(x=>x.code===c.raNext)) $("raNext").value=c.raNext;
-      if(c.raPrev && shifts.some(x=>x.code===c.raPrev)) $("raPrev").value=c.raPrev;
-      renderGrid(); renderNurse();
+      if(c.type!=="勤務表設定" || !applyCfg(c)) throw 0;
       $("nLoadHint").innerHTML='<span style="color:#166534;font-weight:600">'
         + staff.length + '名の名簿を読み込みました。次はお名前を選んでください。</span>';
     }catch(err){
@@ -1301,20 +1469,8 @@ async function readConfigFromDir(h){
   try{
     const fh = await h.getFileHandle("勤務表設定.json");
     const c = JSON.parse(await (await fh.getFile()).text());
-    if(c.type!=="勤務表設定" || !Array.isArray(c.staff)) return false;
-    staff=c.staff; shifts=(c.shifts||shifts).map(migrateNeed); forbidden=c.forbidden||forbidden;
-    if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
-    if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
-    if(c.reqWorkLimit!=null)$("reqWorkLimit").value=c.reqWorkLimit;
-    if(c.raNextOn!=null)$("raNextOn").checked=!!c.raNextOn;
-    if(c.raPrevOn!=null)$("raPrevOn").checked=!!c.raPrevOn;
-    if(c.holidays!=null)$("holidays").value=c.holidays;
-    if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
-                 $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
-    persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid();
-    if(c.raNext && shifts.some(x=>x.code===c.raNext)) $("raNext").value=c.raNext;
-    if(c.raPrev && shifts.some(x=>x.code===c.raPrev)) $("raPrev").value=c.raPrev;
-    return true;
+    if(c.type!=="勤務表設定") return false;
+    return applyCfg(c);
   }catch(e){ return false; }   // まだ置かれていない場合など
 }
 // 起動時、フォルダが許可済みなら名簿を黙って読み込む
@@ -1935,6 +2091,8 @@ let savedRa = null;   // 保存しておいた「希望休の前後」の選択�
   }
   renderGrid(); renderReqSummary(); renderNurse();
   renderDowControls(); renderSeqList(); renderDowList();
+  loadWards(); renderWards();
+  if(!$("wardName").value) $("wardName").value = $("ward").value || "";
   renderVFolder();
   applyMode();   // 集め方に応じて、名簿配布パネルや名簿読込の手順を出し分ける
   refreshFolderHint();
