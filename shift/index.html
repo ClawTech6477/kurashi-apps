@@ -65,6 +65,11 @@
   .day.blank{border:none;background:none;cursor:default}
   .day.we{background:var(--hol)}
   .day.on{background:var(--pick);color:#fff;border-color:var(--pick);font-weight:700}
+  /* 希望の種類(休/日/準/深)をマスの中に出す。休み以外は色を変えて一目で区別できるようにする(2026-08-11) */
+  .day .c{display:block;font-size:11px;font-weight:700;line-height:1.1;margin-top:1px}
+  .day.on.wk{background:#1d4ed8;border-color:#1d4ed8}
+  .kinds button{padding:8px 15px;font-size:14px}
+  .kinds button.off{background:#fff;color:var(--sub);border-color:var(--line);font-weight:400}
   .day:disabled{opacity:.35;cursor:default}
   .picked{font-size:15px;margin-top:12px}
   .picked b{font-size:20px}
@@ -81,6 +86,19 @@
   .cell{width:34px;height:26px;border:none;text-align:center;font:inherit;background:transparent;padding:0}
   .cell:focus{outline:2px solid var(--accent);border-radius:3px}
   .k-night{background:#eef2ff} .k-off{background:#f3f4f6;color:var(--sub)} .k-day{background:#fffbeb}
+  /* セルの出どころ(2026-08-11)。作成後は希望休も自動の休みも同じ「休」になるため、
+     枠線＋記号の二重で見分ける(片方だけだと印刷や画面共有で潰れる) */
+  #grid td{position:relative}
+  #grid td.reqoff {box-shadow:inset 0 0 0 2px #8b2f2f}
+  #grid td.reqwork{box-shadow:inset 0 0 0 2px #1d4ed8}
+  #grid td.fix    {box-shadow:inset 0 0 0 2px #166534}
+  #grid td .src{position:absolute;top:0;right:1px;font-size:8px;line-height:1;pointer-events:none}
+  #grid td.reqoff  .src{color:#8b2f2f}
+  #grid td.reqwork .src{color:#1d4ed8}
+  #grid td.fix     .src{color:#166534}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:12px;color:var(--sub);margin-top:10px}
+  .legend i{display:inline-block;width:16px;height:16px;border-radius:3px;vertical-align:-3px;
+            margin-right:4px;background:#fff}
   .hint{font-size:13px;color:var(--sub);margin-top:8px}
   .warnbox{background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:10px;margin-top:10px;font-size:13px}
   .okbox{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px;margin-top:10px;font-size:13px}
@@ -139,14 +157,21 @@
       </li>
 
       <li class="step">
-        <h3>休みたい日を押してください</h3>
+        <h3>希望を入れてください</h3>
         <div class="row" style="margin-bottom:10px">
           <div><label>対象</label><span id="nYm" style="font-size:17px;font-weight:600"></span></div>
         </div>
+        <div class="hint" style="margin-top:0">
+          まず<b>種類</b>を選んでから、日にちを押してください。同じ日をもう一度押すと取り消せます。
+        </div>
+        <div id="nKinds" class="row kinds" style="margin:8px 0 12px"></div>
         <div class="cal" id="nCal"></div>
         <div class="picked">
-          選んだ日：<b id="nCount">0</b> 日
-          <span id="nLimitMsg" class="hint" style="display:inline;margin-left:8px"></span>
+          休みの希望：<b id="nCount">0</b> 日
+          <span id="nLimitMsg" class="hint" style="display:inline;margin-left:6px"></span>
+          <span style="display:inline-block;width:18px"></span>
+          勤務の希望：<b id="nCountW">0</b> 日
+          <span id="nLimitMsgW" class="hint" style="display:inline;margin-left:6px"></span>
         </div>
         <div id="nList" class="hint"></div>
       </li>
@@ -154,7 +179,7 @@
       <li class="step">
         <h3>提出する</h3>
         <div class="row" style="margin-bottom:10px">
-          <button id="nSubmit" style="font-size:17px;padding:12px 26px">希望休を提出する</button>
+          <button id="nSubmit" style="font-size:17px;padding:12px 26px">希望を提出する</button>
           <button class="ghost small" id="nSetDir">提出先フォルダを設定</button>
         </div>
         <div class="hint" id="nSubmitHint"></div>
@@ -172,6 +197,7 @@
       <div><label>月</label><input type="number" id="month" value="9" min="1" max="12" style="width:64px"></div>
       <div><label>病棟</label><input type="text" id="ward" placeholder="例: 5A" style="width:100px"></div>
       <div><label>希望休の上限(日/月)</label><input type="number" id="reqLimit" value="3" min="0"></div>
+      <div><label>勤務の希望の上限(日/月)</label><input type="number" id="reqWorkLimit" value="3" min="0"></div>
       <div style="margin-left:auto">
         <button id="gen">勤務表を作成</button>
         <button class="ghost" id="regen" title="別の解を探します">別案を出す</button>
@@ -308,6 +334,26 @@
       0にするとその決まりを使いません。人数と必要人数の都合で足りない場合は、作成前に上限をお知らせします。
     </p>
 
+    <h2 style="margin-top:20px">希望休の前後</h2>
+    <div class="row">
+      <label style="display:flex;align-items:center;gap:6px;width:auto;font-size:14px;color:var(--ink)">
+        <input type="checkbox" id="raNextOn" checked style="width:auto">希望休の<b>翌日</b>を</label>
+      <select id="raNext"></select><span>にしない</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label style="display:flex;align-items:center;gap:6px;width:auto;font-size:14px;color:var(--ink)">
+        <input type="checkbox" id="raPrevOn" style="width:auto">希望休の<b>前日</b>を</label>
+      <select id="raPrev"></select><span>にしない</span>
+    </div>
+    <p class="hint">
+      深夜は0時半に出勤するため、翌日が深夜だと希望休の当日は夜に寝ることになり、休みになりません。
+      前日が準夜だと明け方1時過ぎの終業になり、希望休の午前が潰れます（前日ぶんは既定では使いません）。
+      通っていない希望休には適用しません。<b>休み全部ではなく、本人が出した希望休だけ</b>が対象です
+      （全部に広げると 休→深夜 が一切組めず、夜勤の頭数が回らなくなるため）。
+      この決まりは人数合わせよりやや強く効きます。32名30日の試算では人数の過不足は増えませんでしたが、
+      どうしても両立しない月は人数側にしわ寄せが出ることがあるので、作成後の一覧で確認してください。
+    </p>
+
     <h2 style="margin-top:20px">組んではいけない並び</h2>
     <div id="seqList"></div>
     <div class="row" style="margin-top:8px">
@@ -345,6 +391,16 @@
       </div>
     </div>
     <div class="scroll"><table id="grid"></table></div>
+    <div class="legend">
+      <span><i style="box-shadow:inset 0 0 0 2px #8b2f2f"></i><b style="color:#8b2f2f">●</b> 希望休（看護師が出した休み）</span>
+      <span><i style="box-shadow:inset 0 0 0 2px #1d4ed8"></i><b style="color:#1d4ed8">●</b> 勤務の希望（看護師が出した勤務）</span>
+      <span><i style="box-shadow:inset 0 0 0 2px #166534"></i><b style="color:#166534">▲</b> 師長が手で直したところ</span>
+      <span><i style="border:1px solid var(--line)"></i> 印なし ＝ 自動で入れたもの</span>
+    </div>
+    <p class="hint">
+      「希望休の前後」の決まりは<b>●の希望休だけ</b>に効きます。印のない自動の休みや、
+      師長が手で入れた休み（▲）には効きません。書き出し（TSV/CSV）はこれまで通りどれも「休」で出ます。
+    </p>
   </div>
 
   <div class="panel">
@@ -448,9 +504,17 @@ function dowOf(y, m, d, holidays){
 const DEFAULT_WEIGHTS = {
   // 重みは実測で決めた。既定(500前後)だと夜勤連続と曜日ルールが収束せず
   // 40名30日で違反が10件前後残った(2026-08-10)。強めにすると0件になる。
-  need:1000, forbidden:2000, interval:1500, consecWork:800, consecNight:2000,
-  nightMax:400, request:300, leader:250, restAfter:2000, fairNight:40, fairWeekend:20,
-  seq:2000, dowRule:1500, cntMin:900, cntMax:900, restBlock:900,
+  /* consecWork は 800 で必要人数(1000)より軽く、人手が足りないと6連勤・7連勤が
+     黙って組まれていた。連続勤務5日以内は日本看護協会の勤務編成の基準であり、
+     頭数合わせのために破ってよいものではないので夜勤上限と同じ扱いに上げる
+     (UU指示 2026-08-11「連勤5日以内最大でも」)。 */
+  need:1000, forbidden:2000, interval:1500, consecWork:1800, consecNight:2000,
+  /* nightMax は 400 だったが、人数合わせ(need:1000)より軽いため
+     「頭数が足りないから育休の人にもう1回夜勤を入れる」が最適解になっていた。
+     月◯回までは本人との約束(育休・時短・体調)なので人数より優先させる。
+     足りない場合は違反として黙って埋めず、一覧と事前チェックで人手不足として見せる。 */
+  nightMax:1800, request:300, leader:250, restAfter:2000, fairNight:40, fairWeekend:20,
+  seq:2000, dowRule:1500, cntMin:900, cntMax:900, restBlock:900, reqAdj:1500,
 };
 
 /* ── 内部状態をまとめて持つ ────────────────────────── */
@@ -470,7 +534,17 @@ function makeCtx(cfg, grid){
     reqIdx[i] = {};
     Object.entries(days).forEach(([d,c])=>{ reqIdx[i][Number(d)-1]=c; });
   });
-  return {cfg,W,nd,byCode,forbidden,seqs,dowRules,weekend,reqIdx,grid,
+  /* 師長が手で直したセルの索引(2026-08-11)。cfg.requests には看護師が出した希望と
+     師長の手直しが混ざって入っているので、「本人が出した希望休」だけを見たいルール
+     (希望休の前後)がこれを使って手直しぶんを除外する。 */
+  const lockIdx = {};
+  Object.entries(cfg.locked||{}).forEach(([name,days])=>{
+    const i = cfg.staff.findIndex(s=>s.name===name);
+    if(i<0) return;
+    lockIdx[i] = {};
+    Object.keys(days).forEach(d=>{ lockIdx[i][Number(d)-1]=true; });
+  });
+  return {cfg,W,nd,byCode,forbidden,seqs,dowRules,weekend,reqIdx,lockIdx,grid,
           dayPen:new Array(nd).fill(0), staffPen:new Array(cfg.staff.length).fill(0),
           nights:new Array(cfg.staff.length).fill(0),
           wOffs:new Array(cfg.staff.length).fill(0)};
@@ -501,7 +575,7 @@ function calcDay(ctx, d, sink){
 
 /* ── その人だけで決まるペナルティ（夜勤回数・週末休みも同時に数える） ── */
 function calcStaff(ctx, i, sink){
-  const {cfg,W,grid,byCode,forbidden,seqs,dowRules,weekend,reqIdx,nd} = ctx;
+  const {cfg,W,grid,byCode,forbidden,seqs,dowRules,weekend,reqIdx,lockIdx,nd} = ctx;
   const st = cfg.staff[i], R = cfg.rules;
   const row = grid[i];
   let pen=0, consecWork=0, consecNight=0, nights=0, wOff=0;
@@ -540,6 +614,36 @@ function calcStaff(ctx, i, sink){
       }
       run=0;
     }
+  }
+
+  /* ④ 希望休の前後に入れない勤務(2026-08-11)。
+     「組んではいけない並び」(forbiddenSeq)との違いは、これが休み全部ではなく
+     本人が希望として出した休みだけを見ること。深夜は0時半始業なので、希望休の翌日が
+     深夜だと当日の夜に寝る必要があり、せっかくの希望休が休みにならない。
+     休み全部に広げると 休→深 が一切組めなくなり、夜勤の頭数が回らなくなるため
+     対象は希望休に限定している。希望が通っていない日(row[d]が休みでない)は対象外。 */
+  const ra = R.reqAdjacent;
+  if(ra && reqIdx[i]){
+    Object.keys(reqIdx[i]).forEach(k=>{
+      const d = Number(k), code = reqIdx[i][k], sh = byCode[code];
+      if(!sh || sh.kind!=="off") return;   // 勤務の希望ではなく休みの希望だけが対象
+      if(lockIdx[i] && lockIdx[i][d]) return;  // 師長が手で入れた休みは希望休ではない
+      if(row[d] !== code) return;          // その希望自体が通っていないなら見ない
+      (ra.next||[]).forEach(c=>{
+        if(d+1<nd && row[d+1]===c){
+          pen += W.reqAdj;
+          if(sink) sink.push({day:d+2,type:"希望休の前後",
+            msg:`${st.name}: ${d+1}日の希望休の翌日が${byCode[c]?byCode[c].name:c}になっています`});
+        }
+      });
+      (ra.prev||[]).forEach(c=>{
+        if(d-1>=0 && row[d-1]===c){
+          pen += W.reqAdj;
+          if(sink) sink.push({day:d,type:"希望休の前後",
+            msg:`${st.name}: ${d+1}日の希望休の前日が${byCode[c]?byCode[c].name:c}になっています`});
+        }
+      });
+    });
   }
 
   // ③ 曜日条件つきの禁止
@@ -661,7 +765,14 @@ function variance(a){
 }
 function calcFair(ctx){
   const {cfg,W} = ctx;
-  const nc = ctx.nights.filter((_,i)=>cfg.staff[i].canNight);
+  /* 夜勤の公平化は「同じ上限の人どうし」で見る(2026-08-11修正)。
+     以前は canNight な人を全員ひとまとめに分散を取っていたため、
+     育休などで月1回までにしている人が「平均より少ない」と判定され、
+     ばらつきを減らそうとして夜勤を増やす向きの力がかかっていた。
+     上限を下げている人は最初から別枠として公平化の対象にしない。 */
+  const wardCap = (cfg.rules||{}).maxNightPerMonth ?? 8;
+  const nc = ctx.nights.filter((_,i)=>
+    cfg.staff[i].canNight && (cfg.staff[i].maxNight ?? wardCap) >= wardCap);
   return variance(nc)*W.fairNight + variance(ctx.wOffs)*W.fairWeekend;
 }
 
@@ -706,8 +817,17 @@ function feasibility(cfg){
     .reduce((t,s)=>t + Math.min(s.maxNight ?? R.maxNightPerMonth, R.maxNightPerMonth), 0);
   if(nightSlots > cap){
     const short = Math.ceil((nightSlots-cap)/R.maxNightPerMonth);
-    msgs.push(`夜勤の必要のべ人数 ${nightSlots} に対し、夜勤可能な人員の上限合計は ${cap} です。`
-            + `このままでは誰かが月${R.maxNightPerMonth}回を超えます（夜勤できる人があと約${short}名必要）。`);
+    /* 2026-08-11: 以前は「誰かが月◯回を超えます」と伝えていたが、
+       個人の夜勤上限を人数合わせより優先する仕様に変えたため、実際には
+       上限を超えずに夜勤の枠が空く。文面を実際の結果に合わせる。 */
+    const limited = cfg.staff.filter(s=>s.canNight &&
+      (s.maxNight ?? R.maxNightPerMonth) < R.maxNightPerMonth);
+    msgs.push(`夜勤の必要のべ人数 ${nightSlots} に対し、夜勤に入れる回数の合計は ${cap} です。`
+            + `個人の夜勤回数の上限は人数合わせより優先するため、${nightSlots-cap}回ぶんの夜勤が`
+            + `埋まらないまま残ります（夜勤できる人があと約${short}名必要）。`
+            + (limited.length
+               ? `　夜勤回数を減らしている人: ${limited.map(s=>`${s.name}(月${s.maxNight}回)`).join("、")}`
+               : ""));
   }
   // 土日連休が何回まで取れるかの上限を見積もる。
   // ある週末で「土日とも休み」にできる人数は、多くても (全員 - その週末に出る人数)。
@@ -749,23 +869,58 @@ function feasibility(cfg){
 function build(cfg, opts={}){
   const nd = daysInMonth(cfg.year, cfg.month);
   const ns = cfg.staff.length;
+  const R0 = cfg.rules || {};
+  const wardCap = R0.maxNightPerMonth ?? 8;
   const offCode = (cfg.shifts.find(s=>s.kind==="off")||{code:"休"}).code;
   const rnd = mulberry32(opts.seed ?? 12345);
 
   const grid = Array.from({length:ns},()=>Array(nd).fill(offCode));
   const fixed = Array.from({length:ns},()=>Array(nd).fill(false));
+  /* 希望の置き方(2026-08-11に見直し)。
+     休みの希望と師長が手で直したセルは fixed=true で動かさない。
+     一方 勤務の希望(日勤・準夜・深夜)を固定すると、その日の必要人数の枠を
+     勝手に1つ占有してしまい、希望が重なった日は人数超過のまま直せなくなる。
+     そこで勤務の希望は初期値として置くだけにして固定はせず、
+     calcStaff の W.request(300) で「なるべく通す」方向に引っ張る。
+     人数(W.need=1000)のほうが重いので、無理なときは自動で譲る。 */
+  const locked = cfg.locked || {};
   Object.entries(cfg.requests||{}).forEach(([name,days])=>{
     const i = cfg.staff.findIndex(s=>s.name===name);
     if(i<0) return;
     Object.entries(days).forEach(([d,code])=>{
+      const sh = cfg.shifts.find(s=>s.code===code);
       grid[i][Number(d)-1] = code;
-      fixed[i][Number(d)-1] = true;      // 希望は原則動かさない
+      fixed[i][Number(d)-1] = (locked[name] && locked[name][d]) || !sh || sh.kind==="off";
     });
   });
 
   // 貪欲: 制約のきつい夜勤から埋める
   const work = cfg.shifts.filter(s=>s.kind!=="off")
     .slice().sort((a,b)=>(a.kind==="night"?0:1)-(b.kind==="night"?0:1));
+  /* 1人あたりの夜勤上限(2026-08-11修正)。ここまで canNight しか見ておらず、
+     育休や時短で「月1回まで」にしている人にも貪欲法が平気で夜勤を積んでいた。
+     焼きなましの罰則だけでは初期解が悪すぎて戻しきれないので、置く前に弾く。
+     希望として先に置かれた夜勤も数に入れる。 */
+  const capOf = i => Math.min(cfg.staff[i].maxNight ?? wardCap, wardCap);
+  const codeMap = Object.fromEntries(cfg.shifts.map(s=>[s.code,s]));
+  const nightCnt = new Array(ns).fill(0);
+  for(let i=0;i<ns;i++) for(let d=0; d<nd; d++){
+    const sh = codeMap[grid[i][d]];
+    if(sh && sh.kind==="night") nightCnt[i]++;
+  }
+  /* d日の直前まで何連勤しているか。貪欲法が連続勤務日数を全く見ておらず、
+     人手が足りないと初期解の時点で6連勤・7連勤を作っていた(2026-08-11修正)。
+     さかのぼるのは上限+1日までで十分なので打ち切る。 */
+  const maxRun = R0.maxConsecWork ?? 5;
+  const runBefore = (i,d)=>{
+    let n=0;
+    for(let t=d-1; t>=0 && n<=maxRun; t--){
+      const sh = codeMap[grid[i][t]];
+      if(!sh || sh.kind==="off") break;
+      n++;
+    }
+    return n;
+  };
   for(let d=0; d<nd; d++){
     work.forEach(sh=>{
       const need = needOf(sh, cfg.year, cfg.month, d+1, cfg.holidays);
@@ -775,6 +930,8 @@ function build(cfg, opts={}){
       for(let i=0;i<ns;i++){
         if(fixed[i][d] || grid[i][d]!==offCode) continue;
         if(sh.kind==="night" && !cfg.staff[i].canNight) continue;
+        if(sh.kind==="night" && nightCnt[i] >= capOf(i)) continue;   // 夜勤の上限に達した人は候補から外す
+        if(maxRun > 0 && runBefore(i,d) >= maxRun) continue;         // これ以上入れると連勤の上限を超える
         cands.push(i);
       }
       // 直近7日の勤務が少ない人 / リーダー必要ならリーダーを優先
@@ -785,7 +942,11 @@ function build(cfg, opts={}){
         }
         return load(grid,a,d,offCode) - load(grid,b,d,offCode) || rnd()-0.5;
       });
-      for(const i of cands){ if(have>=need) break; grid[i][d]=sh.code; have++; }
+      for(const i of cands){
+        if(have>=need) break;
+        grid[i][d]=sh.code; have++;
+        if(sh.kind==="night") nightCnt[i]++;
+      }
     });
   }
 
@@ -895,7 +1056,31 @@ let staff = [];
 let forbidden = [];
 let forbiddenSeq = [["深","休","深"]];
 let dowRules = [{dows:[0,6],from:"休",to:"深"}];
-let requests = {};    // 氏名 -> [日(1始まり), ...]   ← 希望休のみ
+/* 希望の持ち方(2026-08-11変更)。
+   旧: 氏名 -> [日(1始まり), ...]        希望休だけしか出せなかった
+   新: 氏名 -> {日: 勤務記号}            "休" 以外に "日"/"準"/"深" も出せる
+   共有フォルダに旧形式の 希望休_*.json が残っていることがあるので、
+   読み込みは必ず normReq() を通して両方受けられるようにする。 */
+let requests = {};
+function normReq(v){
+  if(Array.isArray(v)){                       // 旧形式: 日の配列 = すべて希望休
+    const o={}; v.forEach(d=>{ o[Number(d)] = OFF; }); return o;
+  }
+  if(v && typeof v==="object"){
+    const o={};
+    Object.keys(v).forEach(d=>{ if(v[d]) o[Number(d)] = String(v[d]); });
+    return o;
+  }
+  return {};
+}
+// 休みの希望の日だけ / 勤務の希望の日だけ を取り出す
+function daysOf(r, wantOff){
+  const o = normReq(r);
+  return Object.keys(o).map(Number)
+    .filter(d => (o[d]===OFF) === wantOff).sort((a,b)=>a-b);
+}
+const offDaysOf  = r => daysOf(r, true);
+const workDaysOf = r => daysOf(r, false);
 let submitted = {};   // 氏名 -> 提出時刻(表示用)
 let cells = {};       // "i,d" -> code
 let manualFix = {};   // "i,d" -> true （師長が手で直したセル）
@@ -912,7 +1097,8 @@ $("tabN").onclick = ()=>show("N");
 $("tabS").onclick = ()=>show("S");
 
 /* ══════════ 看護師用 ══════════ */
-let myPick = new Set();
+let myPick = {};        // 日(1始まり) -> 勤務記号。"休" のほか "日"/"準"/"深" も入る
+let myKind = OFF;       // いま選んでいる希望の種類
 function renderNurse(){
   const y=Number($("year").value), m=Number($("month").value);
   $("nYm").textContent = `${y}年 ${m}月`;
@@ -932,31 +1118,63 @@ function renderNurse(){
     staff.map(s=>`<option${s.name===cur?" selected":""}>${esc(s.name)}</option>`).join("");
   if(cur) $("nName").value = cur;
 
+  // 希望の種類ボタン(2026-08-11追加)。夜勤ができない人には夜勤の希望を出させない
+  const me = staff.find(s=>s.name===cur);
+  const kinds = shifts.filter(sh=>{
+    if(sh.kind==="off") return sh.code===OFF;    // 休みは「休」だけ(有給などは師長が入れる)
+    if(sh.kind==="night" && me && !me.canNight) return false;
+    return true;
+  }).sort((a,b)=>(a.kind==="off"?0:1)-(b.kind==="off"?0:1));   // いちばん使う「休み」を先頭に
+  if(!kinds.some(sh=>sh.code===myKind)) myKind = OFF;
+  $("nKinds").innerHTML = kinds.map(sh=>
+    `<button class="kind ${sh.code===myKind?"":"off"}" data-c="${esc(sh.code)}">${esc(sh.name)}</button>`).join("");
+  $("nKinds").querySelectorAll(".kind").forEach(b=>{
+    b.onclick = ()=>{ myKind = b.dataset.c; renderNurse(); };
+  });
+
   const nd = daysInMonth(y,m), first = new Date(y,m-1,1).getDay();
   const dow = ["日","月","火","水","木","金","土"];
   let h = dow.map((d,i)=>`<div class="dow ${i===0?'su':i===6?'sa':''}">${d}</div>`).join("");
   for(let i=0;i<first;i++) h += `<button class="day blank" disabled></button>`;
   for(let d=1; d<=nd; d++){
-    const w = new Date(y,m-1,d).getDay();
-    h += `<button class="day ${w===0||w===6?'we':''} ${myPick.has(d)?'on':''}" data-d="${d}">${d}</button>`;
+    const w = new Date(y,m-1,d).getDay(), c = myPick[d];
+    const on = c ? ` on${c!==OFF?" wk":""}` : "";
+    h += `<button class="day ${w===0||w===6?'we':''}${on}" data-d="${d}">${d}`
+       + (c ? `<span class="c">${esc(c)}</span>` : "") + `</button>`;
   }
   $("nCal").innerHTML = h;
+
+  const limOff = Number($("reqLimit").value)||0;
+  const limWk  = Number($("reqWorkLimit").value)||0;
   $("nCal").querySelectorAll(".day[data-d]").forEach(b=>{
     b.onclick = ()=>{
       const d = Number(b.dataset.d);
-      const lim = Number($("reqLimit").value)||0;
-      if(!myPick.has(d) && lim>0 && myPick.size>=lim){
-        alert(`希望休は ${lim} 日までです。`); return;
+      if(myPick[d] === myKind){ delete myPick[d]; renderNurse(); return; }  // 同じ種類をもう一度＝取り消し
+      // 上限は「休みの希望」と「勤務の希望」で別々に数える(性質が違うため)
+      const isOff = myKind===OFF;
+      const lim = isOff ? limOff : limWk;
+      if(lim>0){
+        const now = Object.keys(myPick)
+          .filter(k=>(myPick[k]===OFF)===isOff && Number(k)!==d).length;
+        if(now >= lim){
+          alert(`${isOff?"休みの希望":"勤務の希望"}は ${lim} 日までです。`); return;
+        }
       }
-      myPick.has(d) ? myPick.delete(d) : myPick.add(d);
+      myPick[d] = myKind;
       renderNurse();
     };
   });
-  const lim = Number($("reqLimit").value)||0;
-  $("nCount").textContent = myPick.size;
-  $("nLimitMsg").textContent = lim>0 ? `（上限 ${lim} 日）` : "";
-  const arr=[...myPick].sort((a,b)=>a-b);
-  $("nList").textContent = arr.length ? "選択中： "+arr.map(d=>d+"日").join("、") : "";
+
+  const offs = offDaysOf(myPick), wks = workDaysOf(myPick);
+  $("nCount").textContent  = offs.length;
+  $("nCountW").textContent = wks.length;
+  $("nLimitMsg").textContent  = limOff>0 ? `（上限 ${limOff} 日）` : "";
+  $("nLimitMsgW").textContent = limWk>0  ? `（上限 ${limWk} 日）`  : "";
+  const label = c => { const sh=shifts.find(x=>x.code===c); return sh?sh.name:c; };
+  $("nList").textContent = (offs.length||wks.length)
+    ? "選択中： " + [...offs,...wks].sort((a,b)=>a-b)
+        .map(d=>`${d}日(${label(myPick[d])})`).join("、")
+    : "";
 }
 /* 配布用の設定ファイル。職員名簿はここに入っていて、看護師はこれを読むだけでよい。
    localStorageは端末ごとに独立しているため、PCが複数ある職場では
@@ -965,6 +1183,9 @@ $("expCfg").onclick = ()=>{
   if(!staff.length){ alert("先に職員を登録してください"); return; }
   const cfg = {type:"勤務表設定", year:Number($("year").value), month:Number($("month").value),
                ward:$("ward").value, reqLimit:Number($("reqLimit").value),
+               reqWorkLimit:Number($("reqWorkLimit").value),
+               raNextOn:$("raNextOn").checked, raNext:$("raNext").value,
+               raPrevOn:$("raPrevOn").checked, raPrev:$("raPrev").value,
                holidays:$("holidays").value, staff, shifts, forbidden, forbiddenSeq, dowRules,
                oanRun:Number($("oanRun").value)||0, oanDays:Number($("oanDays").value)||0,
                weRun:Number($("weRun").value)||0, anyRun:Number($("anyRun").value)||0,
@@ -998,11 +1219,17 @@ $("nLoadFile").onchange = e=>{
       if(c.weRun!=null)$("weRun").value=c.weRun; if(c.anyRun!=null)$("anyRun").value=c.anyRun;
       if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
       if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
+      if(c.reqWorkLimit!=null)$("reqWorkLimit").value=c.reqWorkLimit;
+      if(c.raNextOn!=null)$("raNextOn").checked=!!c.raNextOn;
+      if(c.raPrevOn!=null)$("raPrevOn").checked=!!c.raPrevOn;
       if(c.holidays!=null)$("holidays").value=c.holidays;
       shifts=shifts.map(migrateNeed);
       if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
                    $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
-      persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid(); renderNurse();
+      persist(); renderStaff(); renderShifts(); renderFbSelects();
+      if(c.raNext && shifts.some(x=>x.code===c.raNext)) $("raNext").value=c.raNext;
+      if(c.raPrev && shifts.some(x=>x.code===c.raPrev)) $("raPrev").value=c.raPrev;
+      renderGrid(); renderNurse();
       $("nLoadHint").innerHTML='<span style="color:#166534;font-weight:600">'
         + staff.length + '名の名簿を読み込みました。次はお名前を選んでください。</span>';
     }catch(err){
@@ -1014,7 +1241,7 @@ $("nLoadFile").onchange = e=>{
 
 $("nName").onchange = ()=>{
   const nm = $("nName").value;
-  myPick = new Set(requests[nm] || []);
+  myPick = normReq(requests[nm]);   // 提出済みなら続きから直せる(旧形式も読める)
   renderNurse();
 };
 /* ── 提出先フォルダを覚えて、そこへ直接書き込む ──────────────
@@ -1078,10 +1305,15 @@ async function readConfigFromDir(h){
     staff=c.staff; shifts=(c.shifts||shifts).map(migrateNeed); forbidden=c.forbidden||forbidden;
     if(c.year)$("year").value=c.year; if(c.month)$("month").value=c.month;
     if(c.ward)$("ward").value=c.ward; if(c.reqLimit!=null)$("reqLimit").value=c.reqLimit;
+    if(c.reqWorkLimit!=null)$("reqWorkLimit").value=c.reqWorkLimit;
+    if(c.raNextOn!=null)$("raNextOn").checked=!!c.raNextOn;
+    if(c.raPrevOn!=null)$("raPrevOn").checked=!!c.raPrevOn;
     if(c.holidays!=null)$("holidays").value=c.holidays;
     if(c.rules){ $("minInterval").value=c.rules.minInterval; $("maxConsecWork").value=c.rules.maxConsecWork;
                  $("maxConsecNight").value=c.rules.maxConsecNight; $("maxNightPerMonth").value=c.rules.maxNightPerMonth; }
     persist(); renderStaff(); renderShifts(); renderFbSelects(); renderGrid();
+    if(c.raNext && shifts.some(x=>x.code===c.raNext)) $("raNext").value=c.raNext;
+    if(c.raPrev && shifts.some(x=>x.code===c.raPrev)) $("raPrev").value=c.raPrev;
     return true;
   }catch(e){ return false; }   // まだ置かれていない場合など
 }
@@ -1115,9 +1347,9 @@ $("impFolder").onclick = async ()=>{
       if(!/^希望休_.*\.json$/.test(name) || fh.kind!=="file") continue;
       try{
         const d = JSON.parse(await (await fh.getFile()).text());
-        if(!d || !d.name || !Array.isArray(d.days)) continue;
+        if(!d || !d.name || !(d.wishes || Array.isArray(d.days))) continue;
         if(Number(d.year)!==y || Number(d.month)!==m){ skipped++; continue; }
-        requests[d.name]=d.days; added++;
+        requests[d.name]=normReq(d.wishes || d.days); added++;   // 新旧どちらの形式でも読む
         if(!staff.some(x=>x.name===d.name)) staff.push({name:d.name,canNight:true,isLeader:false,maxNight:8});
       }catch(e){ skipped++; }
     }
@@ -1185,8 +1417,11 @@ $("nSubmit").onclick = async ()=>{
   const nm = $("nName").value;
   if(!nm){ alert("お名前を選んでください"); return; }
   const y=Number($("year").value), m=Number($("month").value);
-  const data = {type:"希望休", year:y, month:m, name:nm, days:[...myPick].sort((a,b)=>a-b)};
-  requests[nm] = data.days; persist();
+  /* days は休みの希望だけを入れた旧形式。wishes が勤務の希望も含む新形式。
+     両方書いておくと、片方のパソコンだけ古いファイルのままでも休み希望は読める(2026-08-11)。 */
+  const data = {type:"希望休", year:y, month:m, name:nm,
+                days:offDaysOf(myPick), wishes:normReq(myPick)};
+  requests[nm] = data.wishes; persist();
   const text = JSON.stringify(data,null,1);
   const fname = `希望休_${y}${String(m).padStart(2,"0")}_${nm}.json`;
 
@@ -1198,10 +1433,12 @@ $("nSubmit").onclick = async ()=>{
     renderVFolder(); renderReqSummary(); renderGrid();
     const done = Object.keys(requests).length, all = staff.length;
     $("nDone").innerHTML = `<div class="okbox">
-      ${esc(nm)} さんの希望休（${data.days.length}日）を受け付けました。
+      ${esc(nm)} さんの希望（休み${data.days.length}日${
+        workDaysOf(data.wishes).length ? " / 勤務"+workDaysOf(data.wishes).length+"日" : ""
+      }）を受け付けました。
       <b>次の方にお願いします。</b>（提出済み ${done}／${all}名）</div>`;
     // 次の人に前の人の選択が見えないよう戻す
-    myPick = new Set(); $("nName").value = "";
+    myPick = {}; myKind = OFF; $("nName").value = "";
     renderNurse();
     return;
   }
@@ -1239,11 +1476,11 @@ $("impFile").onchange = e=>{
     rd.onload=()=>{
       try{
         const d=JSON.parse(rd.result);
-        if(d && d.name && Array.isArray(d.days)){
+        if(d && d.name && (d.wishes || Array.isArray(d.days))){
           if(Number(d.year)!==Number($("year").value) || Number(d.month)!==Number($("month").value)){
             skipped.push(`${d.name}（${d.year}年${d.month}月分）`);
           }else{
-            requests[d.name]=d.days; added++;
+            requests[d.name]=normReq(d.wishes || d.days); added++;   // 新旧どちらの形式でも読む
             if(!staff.some(s=>s.name===d.name))
               staff.push({name:d.name,canNight:true,isLeader:false,maxNight:8});
           }
@@ -1271,7 +1508,10 @@ function renderVFolder(){
   tb.innerHTML = names.length
     ? names.map(n=>`<tr>
         <td style="text-align:left">希望休_${y}${m}_${esc(n)}.json</td>
-        <td>${(requests[n]||[]).map(d=>d+"日").join("、")||"—"}</td>
+        <td>${(()=>{ const r=normReq(requests[n]);
+              const s=Object.keys(r).map(Number).sort((a,b)=>a-b)
+                .map(d=>d+"日"+(r[d]===OFF?"":"("+r[d]+")")).join("、");
+              return s||"—"; })()}</td>
         <td>${esc(submitted[n]||"—")}</td>
         <td><button class="vfdel" data-n="${esc(n)}" style="border:none;background:none;color:#6b6b6b;cursor:pointer">×</button></td>
       </tr>`).join("")
@@ -1290,7 +1530,8 @@ $("vfDownloadAll").onclick = ()=>{
   const y=Number($("year").value), m=Number($("month").value);
   const names=Object.keys(requests);
   if(!names.length){ alert("提出がありません"); return; }
-  const all=names.map(n=>({type:"希望休",year:y,month:m,name:n,days:requests[n]}));
+  const all=names.map(n=>({type:"希望休",year:y,month:m,name:n,
+                           days:offDaysOf(requests[n]), wishes:normReq(requests[n])}));
   const b=new Blob([JSON.stringify(all,null,1)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(b);
   a.download=`希望休まとめ_${y}${String(m).padStart(2,"0")}.json`; a.click(); URL.revokeObjectURL(a.href);
@@ -1303,13 +1544,19 @@ function renderReqSummary(){
   // `const未` が1識別子として解釈され実行時エラーになった(2026-08-10)。
   const notYet = staff.filter(s=>!requests[s.name]).map(s=>s.name);
   $("reqSummary").innerHTML =
-    `<b>${names.length}名分</b>を取り込み済み（合計 ${names.reduce((t,n)=>t+requests[n].length,0)} 日）。` +
+    `<b>${names.length}名分</b>を取り込み済み（休みの希望 合計 ${
+       names.reduce((t,n)=>t+offDaysOf(requests[n]).length,0)} 日 / 勤務の希望 合計 ${
+       names.reduce((t,n)=>t+workDaysOf(requests[n]).length,0)} 日）。` +
     (notYet.length ? `<br><span class="warn">未提出：${esc(notYet.join("、"))}</span>` : `<br>全員提出済みです。`);
 }
 
 /* --- 職員 --- */
 function renderStaff(){
   const tb=$("staffTbl").querySelector("tbody"); tb.innerHTML="";
+  /* maxNight が抜けている職員データ(古い設定JSON等)を既定値で埋める。
+     未設定のままだと上限の比較が NaN になり、夜勤回数の制限が黙って無効化される。 */
+  const dflt=Number($("maxNightPerMonth").value)||8;
+  staff.forEach(s=>{ if(s.maxNight==null || isNaN(Number(s.maxNight))) s.maxNight=dflt; });
   staff.forEach((s,i)=>{
     const tr=document.createElement("tr");
     tr.innerHTML=`<td class="nm"><input type="text" value="${esc(s.name)}" style="width:130px"></td>
@@ -1384,7 +1631,22 @@ $("addShift").onclick=()=>{
 /* --- 禁止パターン --- */
 function renderFbSelects(){
   const o=shifts.filter(s=>s.kind!=="off").map(s=>`<option>${esc(s.code)}</option>`).join("");
-  $("fbA").innerHTML=o; $("fbB").innerHTML=o; renderFbList();
+  $("fbA").innerHTML=o; $("fbB").innerHTML=o;
+  // 「希望休の前後」の選択肢。勤務の記号だけを出す(休みの隣が休みでも困らないため)
+  const o2=shifts.filter(s=>s.kind!=="off")
+    .map(s=>`<option value="${esc(s.code)}">${esc(s.name)}</option>`).join("");
+  /* 既定値は勤務時刻から決める。始業がいちばん早い夜勤(＝深夜0時半)が翌日に来ると
+     希望休の当日の夜が潰れる。逆に始業がいちばん遅い夜勤(＝準夜)が前日に来ると
+     終業が明け方になり希望休の午前が潰れる。記号を直書きせず時刻から選ぶ。 */
+  const nights = shifts.filter(s=>s.kind==="night");
+  const early = nights.slice().sort((a,b)=>hhmm(a.start)-hhmm(b.start))[0];
+  const late  = nights.slice().sort((a,b)=>hhmm(b.start)-hhmm(a.start))[0];
+  [["raNext",early],["raPrev",late]].forEach(([id,def])=>{
+    const cur=$(id).value; $(id).innerHTML=o2;
+    if(cur && shifts.some(s=>s.code===cur)) $(id).value=cur;
+    else if(def) $(id).value=def.code;
+  });
+  renderFbList();
 }
 function renderFbList(){
   $("fbList").innerHTML = forbidden.length
@@ -1448,19 +1710,24 @@ $("addDow").onclick = ()=>{
 
 /* --- 勤務表 --- */
 function cfgNow(){
-  const req={};
-  Object.entries(requests).forEach(([nm,days])=>{
-    req[nm]={}; days.forEach(d=>{ req[nm][d]=OFF; });
-  });
-  // 師長が手で直したセルも固定として渡す
+  const req={}, locked={};
+  Object.entries(requests).forEach(([nm,r])=>{ req[nm]=normReq(r); });
+  /* 師長が手で直したセルは locked に入れて、勤務の希望と区別する(2026-08-11)。
+     勤務の希望はあくまで「なるべく通す」扱いで動かせるが、師長が直したセルは動かさない。
+     両方を同じ requests に混ぜていたため、区別する印がここに必要になった。 */
   Object.keys(manualFix).forEach(k=>{
     const [i,d]=k.split(",").map(Number);
-    if(staff[i] && cells[k]) (req[staff[i].name] ||= {})[d+1]=cells[k];
+    if(staff[i] && cells[k]){
+      (req[staff[i].name]    ||= {})[d+1]=cells[k];
+      (locked[staff[i].name] ||= {})[d+1]=true;
+    }
   });
   const hol = ($("holidays").value||"").split(/[,、\s]+/).map(Number).filter(n=>n>=1&&n<=31);
   return {year:Number($("year").value), month:Number($("month").value), shifts, staff, forbidden,
-    requests:req, holidays:hol, forbiddenSeq, dowRules,
+    requests:req, locked, holidays:hol, forbiddenSeq, dowRules,
     rules:{minInterval:Number($("minInterval").value)||11,
+           reqAdjacent:{next: $("raNextOn").checked ? [$("raNext").value] : [],
+                        prev: $("raPrevOn").checked ? [$("raPrev").value] : []},
            maxConsecWork:Number($("maxConsecWork").value)||5,
            maxConsecNight:Number($("maxConsecNight").value)||2,
            maxNightPerMonth:Number($("maxNightPerMonth").value)||8,
@@ -1478,14 +1745,18 @@ function renderGrid(){
     h+=`<th class="${w===0||w===6?'we':''}">${d}<br><span style="font-weight:400">${wd[w]}</span></th>`; }
   h+="<th>夜勤</th><th>休</th></tr></thead><tbody>";
   staff.forEach((s,i)=>{
-    const req=new Set(requests[s.name]||[]);
+    const req=normReq(requests[s.name]);
     h+=`<tr><td class="nm">${esc(s.name)}</td>`;
     for(let d=0;d<nd;d++){
-      const k=i+","+d, v=cells[k]||(req.has(d+1)?OFF:"");
+      const k=i+","+d, want=req[d+1], v=cells[k]||want||"";
       const w=new Date(y,m-1,d+1).getDay();
-      const mark = req.has(d+1) ? ' style="box-shadow:inset 0 0 0 2px #8b2f2f"' : "";
-      h+=`<td class="${w===0||w===6?'we':''} ${kindClass(v)}"${mark}>
-           <input class="cell" data-k="${k}" value="${esc(v)}" maxlength="2"></td>`;
+      /* セルの出どころを3つに描き分ける(2026-08-11)。作成後は希望休も自動で入った休みも
+         同じ「休」になり、どれが本人の希望か分からなくなっていた。枠線の色だけだと
+         印刷や画面共有で潰れるので、記号(●▲)も併せて出す。 */
+      const src = manualFix[k] ? "fix" : want ? (want===OFF?"reqoff":"reqwork") : "";
+      h+=`<td class="${w===0||w===6?'we':''} ${kindClass(v)} ${src}">
+           <input class="cell" data-k="${k}" value="${esc(v)}" maxlength="2">
+           ${src?`<span class="src">${src==="fix"?"▲":"●"}</span>`:""}</td>`;
     }
     h+=`<td id="cn${i}">0</td><td id="co${i}">0</td></tr>`;
   });
@@ -1494,7 +1765,20 @@ function renderGrid(){
     inp.addEventListener("input",()=>{
       const k=inp.dataset.k, v=inp.value.trim();
       if(v){ cells[k]=v; manualFix[k]=true; } else { delete cells[k]; delete manualFix[k]; }
-      inp.parentElement.className=inp.parentElement.className.replace(/k-\w+/g,"")+" "+kindClass(v);
+      /* 出どころの印を、再描画を待たずにその場で付け替える。
+         手直しを消したときは希望の印(●)に戻す必要があるので、
+         manualFix だけを見ず requests から引き直している。 */
+      const [ii,dd]=k.split(",").map(Number);
+      const want = staff[ii] ? normReq(requests[staff[ii].name])[dd+1] : null;
+      const src = manualFix[k] ? "fix" : want ? (want===OFF?"reqoff":"reqwork") : "";
+      const td=inp.parentElement;
+      td.className=td.className.replace(/k-\w+/g,"").replace(/\b(fix|reqoff|reqwork)\b/g,"")
+                  +" "+kindClass(v)+(src?" "+src:"");
+      let mk=td.querySelector(".src");
+      if(src){
+        if(!mk){ mk=document.createElement("span"); mk.className="src"; td.appendChild(mk); }
+        mk.textContent = src==="fix" ? "▲" : "●";
+      } else if(mk) mk.remove();
       updateCounts(); persist();
     });
     inp.addEventListener("keydown",e=>{
@@ -1555,12 +1839,19 @@ function report(r){
   const cfg=cfgNow();
   const nc=r.nightCounts.filter((n,i)=>cfg.staff[i]&&cfg.staff[i].canNight);
   $("nrange").textContent=nc.length?`${Math.min(...nc)}〜${Math.max(...nc)}回`:"–";
-  let want=0,got=0;
-  Object.entries(requests).forEach(([nm,days])=>{
+  // 充足率は休みの希望と勤務の希望を分けて出す(通り方の意味が違うため。2026-08-11)
+  let want=0,got=0,wantW=0,gotW=0;
+  Object.entries(requests).forEach(([nm,r0])=>{
     const i=staff.findIndex(s=>s.name===nm); if(i<0) return;
-    days.forEach(d=>{ want++; if(cells[i+","+(d-1)]===OFF) got++; });
+    const req=normReq(r0);
+    Object.keys(req).forEach(d=>{
+      const hit = cells[i+","+(Number(d)-1)]===req[d];
+      if(req[d]===OFF){ want++; if(hit) got++; }
+      else            { wantW++; if(hit) gotW++; }
+    });
   });
-  $("reqrate").textContent = want?`${got}/${want}件`:"–";
+  $("reqrate").textContent = (want||wantW)
+    ? `休み ${got}/${want}件` + (wantW?` / 勤務 ${gotW}/${wantW}件`:"") : "–";
   $("vbox").innerHTML = r.violations.length
     ? `<div class="warnbox"><b>要確認 ${r.violations.length}件</b>
         <div class="vlist">${r.violations.slice(0,200).map(v=>`<div>${esc(v.type)}｜${esc(v.msg)}</div>`).join("")}</div>
@@ -1598,13 +1889,20 @@ $("clearGrid").onclick=()=>{
 function persist(){
   try{ localStorage.setItem(LS,JSON.stringify({shifts,staff,forbidden,forbiddenSeq,dowRules,requests,cells,manualFix,
     year:$("year").value,month:$("month").value,ward:$("ward").value,
-    reqLimit:$("reqLimit").value,holidays:$("holidays").value,mode:currentMode(),submitted,
+    reqLimit:$("reqLimit").value,reqWorkLimit:$("reqWorkLimit").value,
+    holidays:$("holidays").value,mode:currentMode(),submitted,
     oanRun:$("oanRun").value,oanDays:$("oanDays").value,
-    weRun:$("weRun").value,anyRun:$("anyRun").value})); }catch(e){}
+    weRun:$("weRun").value,anyRun:$("anyRun").value,
+    raNextOn:$("raNextOn").checked,raNext:$("raNext").value,
+    raPrevOn:$("raPrevOn").checked,raPrev:$("raPrev").value})); }catch(e){}
 }
 ["year","month"].forEach(id=>$(id).addEventListener("change",()=>{ renderGrid(); renderNurse(); persist(); }));
-["ward","reqLimit","holidays"].forEach(id=>$(id).addEventListener("change",persist));
+["ward","reqLimit","reqWorkLimit","holidays",
+ "raNextOn","raNext","raPrevOn","raPrev"].forEach(id=>$(id).addEventListener("change",persist));
+// 上限を変えたら看護師画面の表示もすぐ合わせる
+["reqLimit","reqWorkLimit"].forEach(id=>$(id).addEventListener("change",renderNurse));
 
+let savedRa = null;   // 保存しておいた「希望休の前後」の選択。選択肢を作った後に入れ直す
 (function init(){
   let s=null; try{ s=JSON.parse(localStorage.getItem(LS)); }catch(e){}
   if(s){
@@ -1613,17 +1911,29 @@ function persist(){
     if(s.dowRules) dowRules=s.dowRules;
     if(s.oanRun!=null)$("oanRun").value=s.oanRun; if(s.oanDays!=null)$("oanDays").value=s.oanDays;
     if(s.weRun!=null)$("weRun").value=s.weRun; if(s.anyRun!=null)$("anyRun").value=s.anyRun;
-    requests=s.requests||{}; cells=s.cells||{}; manualFix=s.manualFix||{};
+    // 旧形式(配列)で保存されていた希望をここで新形式へ揃える(2026-08-11)
+    requests={}; Object.entries(s.requests||{}).forEach(([n,r])=>{ requests[n]=normReq(r); });
+    cells=s.cells||{}; manualFix=s.manualFix||{};
     submitted=s.submitted||{};
+    if(s.raNextOn!=null)$("raNextOn").checked=!!s.raNextOn;
+    if(s.raPrevOn!=null)$("raPrevOn").checked=!!s.raPrevOn;
+    // selectの中身は renderFbSelects() で作られる。先に value を入れても消えるので後で入れる
+    savedRa = {next:s.raNext, prev:s.raPrev};
     if(s.year)$("year").value=s.year; if(s.month)$("month").value=s.month;
     if(s.ward)$("ward").value=s.ward; if(s.reqLimit)$("reqLimit").value=s.reqLimit;
+    if(s.reqWorkLimit!=null)$("reqWorkLimit").value=s.reqWorkLimit;
     if(s.holidays)$("holidays").value=s.holidays;
     if(s.mode==="file"){ $("modeFile").checked=true; } else { $("modeLocal").checked=true; }
   }
   if(!$("modeLocal").checked && !$("modeFile").checked) $("modeLocal").checked = true;
   shifts = shifts.map(migrateNeed);   // 旧形式で保存済みのデータを曜日別へ移行
   if(!forbidden.length) forbidden=deriveForbidden(shifts,11);
-  renderShifts(); renderStaff(); renderFbSelects(); renderGrid(); renderReqSummary(); renderNurse();
+  renderShifts(); renderStaff(); renderFbSelects();
+  if(savedRa){   // 選択肢ができたので、保存してあった値を入れ直す
+    if(savedRa.next && shifts.some(x=>x.code===savedRa.next)) $("raNext").value=savedRa.next;
+    if(savedRa.prev && shifts.some(x=>x.code===savedRa.prev)) $("raPrev").value=savedRa.prev;
+  }
+  renderGrid(); renderReqSummary(); renderNurse();
   renderDowControls(); renderSeqList(); renderDowList();
   renderVFolder();
   applyMode();   // 集め方に応じて、名簿配布パネルや名簿読込の手順を出し分ける
