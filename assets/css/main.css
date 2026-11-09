@@ -309,7 +309,7 @@ a {
   text-transform: uppercase;
 }
 
-.app-card h3 {
+.app-card h3, .app-card .app-card__name {
   font-family: var(--font-display);
   font-size: 20px;
   margin: 0;

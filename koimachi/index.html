@@ -16,8 +16,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%82%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kurashi-apps/assets/css/main.css">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional"></noscript></noscript>
+<link rel="stylesheet" href="/assets/css/main.css">
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-RZ1TP2K3N0"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-RZ1TP2K3N0');</script>
@@ -26,26 +26,26 @@
 
 <nav class="tabnav">
   <div class="tabnav__inner">
-    <p class="tabnav__brand"><a href="/kurashi-apps/">くらしのアプリ棚</a></p>
-    <a class="tab tab--koimachi is-current" href="/kurashi-apps/koimachi/"><span class="tab__dot"></span>コイマチ</a><a class="tab tab--glp1" href="/kurashi-apps/glp1/"><span class="tab__dot"></span>GLP-1トラッカー</a><a class="tab tab--zuki" href="/kurashi-apps/zukipuka/"><span class="tab__dot"></span>ずきぷか</a>
+    <p class="tabnav__brand"><a href="/">くらしのアプリ棚</a></p>
+    <a class="tab tab--koimachi is-current" href="/koimachi/"><span class="tab__dot"></span>コイマチ</a><a class="tab tab--glp1" href="/glp1/"><span class="tab__dot"></span>GLP-1トラッカー</a><a class="tab tab--zuki" href="/zukipuka/"><span class="tab__dot"></span>ずきぷか</a>
   </div>
 </nav>
 
 <main style="--accent: var(--koimachi); --accent-soft: var(--koimachi-soft);">
   <div class="wrap wrap--narrow">
     <section class="hero">
-      <img src="/kurashi-apps/assets/img/icon-koimachi.png" alt="コイマチのアイコン" width="64" height="64" style="border-radius:16px;margin-bottom:22px;">
+      <img src="/assets/img/icon-koimachi.png" alt="コイマチのアイコン" width="64" height="64" style="border-radius:16px;margin-bottom:22px;">
       <p class="hero__eyebrow">婚活・恋活イベント検索アプリ</p>
       <h1>行くか迷う前に、まず一覧で見てみる。</h1>
       <p class="lede">全国の婚活イベントを横断検索。申込みは、各主催者のページで。コイマチは「人」ではなく「イベント」を探すためのアプリです。</p>
       
 <div class="cta-row">
   <a class="badge-btn" href="https://apps.apple.com/jp/app/id6791409596" target="_blank" rel="noopener" onclick="if(window.gtag){gtag('event','app_store_click',{'app_name':'コイマチ','page_path':location.pathname})}">
-    <img src="/kurashi-apps/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
+    <img src="/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
   </a>
 </div>
-<p class="trust-line">個人開発の小さなアプリです。<a href="/kurashi-apps/about/">運営者について →</a></p>
-      <div class="screens"><img src="/kurashi-apps/assets/img/screens/koimachi-1-feed.png" alt="コイマチのイベント一覧画面" loading="lazy"><img src="/kurashi-apps/assets/img/screens/koimachi-2-filter.png" alt="カテゴリで絞り込む画面" loading="lazy"><img src="/kurashi-apps/assets/img/screens/koimachi-3-search.png" alt="キーワード検索画面" loading="lazy"><img src="/kurashi-apps/assets/img/screens/koimachi-4-bookmarks.png" alt="気になるリスト画面" loading="lazy"></div>
+<p class="trust-line">個人開発の小さなアプリです。<a href="/about/">運営者について →</a></p>
+      <div class="screens"><img src="/assets/img/screens/koimachi-1-feed.png" alt="コイマチのイベント一覧画面" loading="lazy"><img src="/assets/img/screens/koimachi-2-filter.png" alt="カテゴリで絞り込む画面" loading="lazy"><img src="/assets/img/screens/koimachi-3-search.png" alt="キーワード検索画面" loading="lazy"><img src="/assets/img/screens/koimachi-4-bookmarks.png" alt="気になるリスト画面" loading="lazy"></div>
     </section>
 
     <section class="section">
@@ -70,7 +70,7 @@
       
 <div class="cta-row">
   <a class="badge-btn" href="https://apps.apple.com/jp/app/id6791409596" target="_blank" rel="noopener" onclick="if(window.gtag){gtag('event','app_store_click',{'app_name':'コイマチ','page_path':location.pathname})}">
-    <img src="/kurashi-apps/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
+    <img src="/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
   </a>
 </div>
 
@@ -115,7 +115,7 @@
     
 <div class="cta-row">
   <a class="badge-btn" href="https://apps.apple.com/jp/app/id6791409596" target="_blank" rel="noopener" onclick="if(window.gtag){gtag('event','app_store_click',{'app_name':'コイマチ','page_path':location.pathname})}">
-    <img src="/kurashi-apps/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
+    <img src="/assets/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="163" height="50">
   </a>
 </div>
 
@@ -126,16 +126,16 @@
     <p class="cross-nav__label">ほかのアプリも見る</p>
     <div class="app-grid app-grid--pair">
       
-<a class="app-card app-card--glp1" href="/kurashi-apps/glp1/">
-  <img class="app-card__icon" src="/kurashi-apps/assets/img/icon-glp1.png" alt="GLP-1トラッカーアイコン" width="56" height="56">
+<a class="app-card app-card--glp1" href="/glp1/">
+  <img class="app-card__icon" src="/assets/img/icon-glp1.png" alt="GLP-1トラッカーアイコン" width="56" height="56">
   <p class="app-card__cat">健康記録</p>
   <h3>GLP-1トラッカー</h3>
   <p>GLP-1受容体作動薬による治療の記録を、登録不要・広告なしでそっと続けられるアプリ。</p>
   <div class="app-card__tags"><span class="tag">匿名認証</span><span class="tag">広告なし</span><span class="tag">データ完全削除可</span></div>
   <span class="app-card__cta">くわしく見る</span>
 </a>
-<a class="app-card app-card--zuki" href="/kurashi-apps/zukipuka/">
-  <img class="app-card__icon" src="/kurashi-apps/assets/img/icon-zukipuka.png" alt="ずきぷかアイコン" width="56" height="56">
+<a class="app-card app-card--zuki" href="/zukipuka/">
+  <img class="app-card__icon" src="/assets/img/icon-zukipuka.png" alt="ずきぷかアイコン" width="56" height="56">
   <p class="app-card__cat">気圧・頭痛記録</p>
   <h3>ずきぷか</h3>
   <p>気圧予報と頭痛記録をセットで。月額課金なし、¥500の買い切りだけで長く使えます。</p>
@@ -150,9 +150,9 @@
 <footer>
   <div class="wrap">
     <div class="foot-links">
-      <a href="/kurashi-apps/shift/">師長のシフト表</a>
-      <a href="/kurashi-apps/about/">運営者について</a>
-      <a href="/kurashi-apps/privacy/">プライバシーポリシー</a>
+      <a href="/shift/">師長のシフト表</a>
+      <a href="/about/">運営者について</a>
+      <a href="/privacy/">プライバシーポリシー</a>
     </div>
     <p>&copy; 2026 くらしのアプリ棚</p>
   </div>

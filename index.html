@@ -16,8 +16,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%97%82%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/kurashi-apps/assets/css/main.css">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=optional"></noscript></noscript>
+<link rel="stylesheet" href="/assets/css/main.css">
 <!-- Google Analytics -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-RZ1TP2K3N0"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-RZ1TP2K3N0');</script>
@@ -27,8 +27,8 @@
 
 <nav class="tabnav">
   <div class="tabnav__inner">
-    <p class="tabnav__brand"><a href="/kurashi-apps/">くらしのアプリ棚</a></p>
-    <a class="tab tab--koimachi" href="/kurashi-apps/koimachi/"><span class="tab__dot"></span>コイマチ</a><a class="tab tab--glp1" href="/kurashi-apps/glp1/"><span class="tab__dot"></span>GLP-1トラッカー</a><a class="tab tab--zuki" href="/kurashi-apps/zukipuka/"><span class="tab__dot"></span>ずきぷか</a>
+    <p class="tabnav__brand"><a href="/">くらしのアプリ棚</a></p>
+    <a class="tab tab--koimachi" href="/koimachi/"><span class="tab__dot"></span>コイマチ</a><a class="tab tab--glp1" href="/glp1/"><span class="tab__dot"></span>GLP-1トラッカー</a><a class="tab tab--zuki" href="/zukipuka/"><span class="tab__dot"></span>ずきぷか</a>
   </div>
 </nav>
 
@@ -44,26 +44,26 @@
   <div class="wrap">
     <div class="app-grid">
       
-<a class="app-card app-card--koimachi" href="/kurashi-apps/koimachi/">
-  <img class="app-card__icon" src="/kurashi-apps/assets/img/icon-koimachi.png" alt="コイマチアイコン" width="56" height="56">
+<a class="app-card app-card--koimachi" href="/koimachi/">
+  <img class="app-card__icon" src="/assets/img/icon-koimachi.png" alt="コイマチアイコン" width="56" height="56">
   <p class="app-card__cat">婚活・恋活イベント</p>
-  <h3>コイマチ</h3>
+  <h2 class="app-card__name">コイマチ</h2>
   <p>全国の婚活・恋活イベントを横断検索。マッチング機能はなく、あくまで「イベント探し」に特化。</p>
   <div class="app-card__tags"><span class="tag">登録不要で閲覧可</span><span class="tag">全国横断検索</span><span class="tag">マッチング機能なし</span></div>
   <span class="app-card__cta">くわしく見る</span>
 </a>
-<a class="app-card app-card--glp1" href="/kurashi-apps/glp1/">
-  <img class="app-card__icon" src="/kurashi-apps/assets/img/icon-glp1.png" alt="GLP-1トラッカーアイコン" width="56" height="56">
+<a class="app-card app-card--glp1" href="/glp1/">
+  <img class="app-card__icon" src="/assets/img/icon-glp1.png" alt="GLP-1トラッカーアイコン" width="56" height="56">
   <p class="app-card__cat">健康記録</p>
-  <h3>GLP-1トラッカー</h3>
+  <h2 class="app-card__name">GLP-1トラッカー</h2>
   <p>GLP-1受容体作動薬による治療の記録を、登録不要・広告なしでそっと続けられるアプリ。</p>
   <div class="app-card__tags"><span class="tag">匿名認証</span><span class="tag">広告なし</span><span class="tag">データ完全削除可</span></div>
   <span class="app-card__cta">くわしく見る</span>
 </a>
-<a class="app-card app-card--zuki" href="/kurashi-apps/zukipuka/">
-  <img class="app-card__icon" src="/kurashi-apps/assets/img/icon-zukipuka.png" alt="ずきぷかアイコン" width="56" height="56">
+<a class="app-card app-card--zuki" href="/zukipuka/">
+  <img class="app-card__icon" src="/assets/img/icon-zukipuka.png" alt="ずきぷかアイコン" width="56" height="56">
   <p class="app-card__cat">気圧・頭痛記録</p>
-  <h3>ずきぷか</h3>
+  <h2 class="app-card__name">ずきぷか</h2>
   <p>気圧予報と頭痛記録をセットで。月額課金なし、¥500の買い切りだけで長く使えます。</p>
   <div class="app-card__tags"><span class="tag">買い切り¥500</span><span class="tag">広告ゼロ恒久</span><span class="tag">気圧×頭痛記録</span></div>
   <span class="app-card__cta">くわしく見る</span>
@@ -86,20 +86,20 @@
     <section class="section" style="border-top:none;padding-top:0;">
       <h2 style="font-family:var(--font-mono);font-size:14px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;">column</h2>
       <ul class="feature-list">
-        <li><span class="mark">婚活</span><a href="/kurashi-apps/koimachi/column/konkatsu-event-guide/">【2026年版】婚活イベントの探し方ガイド</a></li>
-        <li><span class="mark">婚活</span><a href="/kurashi-apps/koimachi/column/jichitai-konkatsu/">自治体主催の婚活イベントとは?民間との違い・メリット・探し方まとめ</a></li>
-        <li><span class="mark">婚活</span><a href="/kurashi-apps/koimachi/column/matching-app-tsukareta/">マッチングアプリに疲れたら。「イベント型婚活」というもうひとつのやり方</a></li>
-        <li><span class="mark">GLP-1</span><a href="/kurashi-apps/glp1/column/glp1-app-erabikata/">GLP-1の注射記録アプリの選び方</a></li>
-        <li><span class="mark">GLP-1</span><a href="/kurashi-apps/glp1/column/toyo-kanri-kufuu/">週1回の投与日、どう管理してる?打ち忘れを防ぐ記録の工夫3つ</a></li>
-        <li><span class="mark">気圧痛</span><a href="/kurashi-apps/zukipuka/column/kiatsu-app-hikaku/">気圧アプリの月額、そろそろ気になってきた人へ</a></li>
-        <li><span class="mark">気圧痛</span><a href="/kurashi-apps/zukipuka/column/kiatsu-app-muryo-check/">気圧と頭痛の記録アプリ、無料でどこまでできる?</a></li>
-        <li><span class="mark">気圧痛</span><a href="/kurashi-apps/zukipuka/column/zutsuu-kiroku-tsukekata/">頭痛の記録、何をつければいい?</a></li>
+        <li><span class="mark">婚活</span><a href="/koimachi/column/konkatsu-event-guide/">【2026年版】婚活イベントの探し方ガイド</a></li>
+        <li><span class="mark">婚活</span><a href="/koimachi/column/jichitai-konkatsu/">自治体主催の婚活イベントとは?民間との違い・メリット・探し方まとめ</a></li>
+        <li><span class="mark">婚活</span><a href="/koimachi/column/matching-app-tsukareta/">マッチングアプリに疲れたら。「イベント型婚活」というもうひとつのやり方</a></li>
+        <li><span class="mark">GLP-1</span><a href="/glp1/column/glp1-app-erabikata/">GLP-1の注射記録アプリの選び方</a></li>
+        <li><span class="mark">GLP-1</span><a href="/glp1/column/toyo-kanri-kufuu/">週1回の投与日、どう管理してる?打ち忘れを防ぐ記録の工夫3つ</a></li>
+        <li><span class="mark">気圧痛</span><a href="/zukipuka/column/kiatsu-app-hikaku/">気圧アプリの月額、そろそろ気になってきた人へ</a></li>
+        <li><span class="mark">気圧痛</span><a href="/zukipuka/column/kiatsu-app-muryo-check/">気圧と頭痛の記録アプリ、無料でどこまでできる?</a></li>
+        <li><span class="mark">気圧痛</span><a href="/zukipuka/column/zutsuu-kiroku-tsukekata/">頭痛の記録、何をつければいい?</a></li>
       </ul>
     </section>
 
     <section class="section">
       <h2>運営について</h2>
-      <p>3本とも、同じ一人の個人開発者が作っています。法人向けの受託開発とは別に、自分の生活や身近な人の悩みから発想したアプリを、時間を見つけて作り続けています。<a href="/kurashi-apps/about/">運営者について →</a></p>
+      <p>3本とも、同じ一人の個人開発者が作っています。法人向けの受託開発とは別に、自分の生活や身近な人の悩みから発想したアプリを、時間を見つけて作り続けています。<a href="/about/">運営者について →</a></p>
     </section>
   </div>
 </main>
@@ -107,9 +107,9 @@
 <footer>
   <div class="wrap">
     <div class="foot-links">
-      <a href="/kurashi-apps/shift/">師長のシフト表</a>
-      <a href="/kurashi-apps/about/">運営者について</a>
-      <a href="/kurashi-apps/privacy/">プライバシーポリシー</a>
+      <a href="/shift/">師長のシフト表</a>
+      <a href="/about/">運営者について</a>
+      <a href="/privacy/">プライバシーポリシー</a>
       <a href="/clawtech-lp/">運営: ClawTech</a>
       <a href="/clawtech-lp/shindan.html?src=kurashi-apps">30秒でわかる 無料DX診断</a>
     </div>
