@@ -10,7 +10,7 @@
   --paper-raised: #ffffff;
   --ink: #2b2620;
   --ink-soft: #6b6153;
-  --ink-faint: #9b9184;
+  --ink-faint: #756e64; /* 旧#9b9184 文字コントラスト4.5確保 2026-11-10 */
   --rule: #ddd4c4;
   --rule-strong: #c9bda6;
   --shadow: 0 1px 0 rgba(43, 38, 32, 0.05);
@@ -18,17 +18,17 @@
   --shadow-tab: 0 3px 8px rgba(43, 38, 32, 0.12);
 
   /* --- アプリごとの肌の色 --- */
-  --koimachi: #f2437b;
+  --koimachi: #bc345f; /* 旧#f2437b */
   --koimachi-ink: #7a1436;
   --koimachi-soft: #fce6ee;
   --koimachi-line: #f6b8cd;
 
-  --glp1: #c63d2f;
+  --glp1: #ba392c; /* 旧#c63d2f */
   --glp1-deep: #1c1f24;
   --glp1-soft: #ece7e2;
   --glp1-line: #d8b7b0;
 
-  --zuki: #8f7dd8;
+  --zuki: #6f61a8; /* 旧#8f7dd8 */
   --zuki-pink: #f0a8c8;
   --zuki-soft: #f1edfb;
   --zuki-line: #cfc2ef;
@@ -170,7 +170,7 @@ a {
   background: var(--paper-raised);
   color: var(--ink-soft);
   transform: translateY(4px);
-  opacity: 0.72;
+  opacity: 1;
   transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
 }
 
