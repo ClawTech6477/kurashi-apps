@@ -870,3 +870,11 @@ footer .foot-links {
     scroll-behavior: auto !important;
   }
 }
+
+/* スマホ: ブランドを1行目、3タブを2行目に1列で並べる(2026-11-10 崩れ修正) */
+@media (max-width: 560px) {
+  .tabnav__inner { padding: 10px 16px 0; gap: 6px; }
+  .tabnav__brand { flex: 0 0 100%; padding-bottom: 4px; font-size: 16px; }
+  .tab, .tab.is-current { flex: 1 1 0; justify-content: center; min-width: 0; padding: 10px 6px 11px; font-size: 13px; white-space: nowrap; }
+  .tab.is-current { font-size: 13.5px; }
+}
