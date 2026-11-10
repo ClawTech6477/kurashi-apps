@@ -239,6 +239,16 @@ a {
   margin: 0 0 28px;
 }
 
+.hero__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  border-radius: 16px;
+  background: var(--paper);
+}
+
 /* --------------------------------------------------------------------------
    アプリカード(ハブ・記事末尾・相互回遊で使い回す)
    -------------------------------------------------------------------------- */
@@ -877,4 +887,8 @@ footer .foot-links {
   .tabnav__brand { flex: 0 0 100%; padding-bottom: 4px; font-size: 16px; }
   .tab, .tab.is-current { flex: 1 1 0; justify-content: center; min-width: 0; padding: 10px 6px 11px; font-size: 13px; white-space: nowrap; }
   .tab.is-current { font-size: 13.5px; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .hero__img { filter: brightness(0.86); }
 }
