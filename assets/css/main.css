@@ -640,6 +640,7 @@ a {
 .screens img {
   flex: none;
   width: 168px;
+  height: auto;
   border-radius: 18px;
   border: 6px solid var(--paper-raised);
   box-shadow: var(--shadow-card);
